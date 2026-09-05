@@ -332,7 +332,239 @@ Built application at: ...\target\release\desktop-naotu.exe
 - 原生 Rust 菜单仍是英文硬编码，需要本地化。
 - API key 应改用系统凭据管理器，不应长期明文存储。
 - 替换 `window.confirm/prompt` 为项目 dialogs 组件。
+
+### Vite 文件监视 EBUSY 修复（2026-09-05）
+
+用户报告在运行 `pnpm dev:tauri` 时 Vite 抛出：
+
+```text
+Emitted 'error' event on FSWatcher instance
+errno: -4082, syscall: 'watch', code: 'EBUSY'
+path: src-tauri/target/debug/deps/desktop_naotu.exe
+```
+
+根因：Vite dev server 默认会监视 `node_modules/` 和项目根，chokidar 会顺藤摸瓜发现 `src-tauri/target/debug/deps/*.exe`，这些 Tauri 编译产物在 Windows 下被锁。`*.rs` 文件被监视也不必要。
+
+修复：`tauri-spike/vite.config.ts` 新增 `server.watch.ignored`：
+
+```typescript
+ignored: [
+  '**/src-tauri/target/**',
+  '**/*.rs',
+  '**/.git/**',
+],
+```
+
+验证：`pnpm typecheck`、`pnpm build` 通过。
+
+仍需在 GUI 中执行 `pnpm dev:tauri` 启动开发模式，确认 dev server 不再抛 EBUSY。
+
+### 节点手型光标（2026-09-05）
+
+用户报告：选中/悬停节点时，鼠标光标没有变成手型，无法直观看出节点可点击。
+
+修复：在两端 `components/editor/MindEditor.vue` 的 scoped 样式中添加 `:deep()` 选择器，把 markmap 动态生成的节点组的 cursor 设为 pointer：
+
+```css
+.canvas > svg :deep(g.markmap-node) {
+  cursor: pointer;
+}
+.canvas > svg :deep(g.markmap-node circle),
+.canvas > svg :deep(g.markmap-node rect) {
+  cursor: pointer;
+}
+```
+
+说明：
+
+- 使用 `:deep()` 是因为 markmap 渲染的 `<g class="markmap-node">` 节点在运行时创建，不带 Vue 的 scoped 属性。
+- 同时作用于 `g.markmap-node` 本身和其中的 `circle`/`rect`，确保鼠标悬停在节点形状上时也显示手型。
+- 两端 Web/Tauri 同步修改。
+
+验证：两端 `pnpm typecheck`、`pnpm lint`、`pnpm format:check` 通过。
+
+### AI助手折叠图标（2026-09-05）
+
+用户报告：AI助手始终占据侧栏空间，干扰编辑视图。
+
+修复：两端 `components/panels/AiAssistant.vue` 改造为可折叠组件。
+
+设计：
+
+- 默认折叠状态，仅显示一个 🤖 圆形图标按钮（36×36px）。
+- 点击图标展开完整面板（标题、textarea、按钮、回答区）。
+- 展开时面板顶部新增关闭按钮按钮（✕）可一键收起。
+- 图标按钮使用 `aria-expanded` 保证可访问性。
+- 折叠时不占据侧栏空间（仅图标本身约 52px 高度，含边距）。
+- 展开/折叠过渡使用 CSS `transition: background 0.15s`，无闪烁。
+- 圆角 50% 的图标按钮在折叠态悬浮/激活时使用强调色，作为"打开"提示。
+- 两端 Web/Tauri 同步实现。
+
+实现状态：折叠状态是局部 ref，不持久化。用户期望"默认折叠、点开、收起"。
+
+i18n 新增键：
+
+- `ai.expand`：图标按钮的悬浮提示。
+- `ai.collapse`：面板内关闭按钮提示。
+
+四语言全部同步。
+
+验证：两端 `pnpm verify` 通过（Tauri 42 tests，Web 35 tests）。
+
+### AI浮动按钮 + 抽屉（2026-09-05）
+
+用户报告：AI助手即使折叠为图标仍占用侧栏空间，且仅在编辑器页可见。应悬浮在整个页面右下角，可拖动，点击从右侧抽屉打开。
+
+修复：两端 `components/panels/AiAssistant.vue` 重写为浮动按钮 + 右侧抽屉；从 `views/EditorView.vue` 移到 `App.vue` 使所有路由可用。
+
+设计：
+
+- **悬浮按钮 (FAB)**：44×44px 圆形，初始位置右下角 (16px 边距)。
+  - 拖动：使用 `pointerdown/move/up` 实现，避免鼠标/触屏差异。
+  - 4px 拖动阈值区分"拖动"与"点击"，避免误触。
+  - 边界裁剪：不超出可视区域，FAB_MARGIN=16 保护。
+  - 拖动时光标变 `grabbing`，盒子阴影加深。
+- **抽屉**：固定右侧，宽度 380px，从右侧滑入 (transform: translateX)。
+  - 包含标题、textarea、ask/cancel/apply 按钮、回答区。
+  - 抽屉打开/关闭 0.2s `ease-out` 过渡。
+- **编辑器侧栏**：移除 AiAssistant 后，Properties 占满整个 320px 侧栏，更适合编辑节点。
+- **键盘可达**：FAB 支持 Enter/Space 切换；`aria-expanded`、`aria-hidden`、`role="dialog"` 已就位。
+- **图标按钮 z-index**：9000，确保悬浮在任何路由内容之上。
+
+i18n 复用 `ai.expand`、`ai.collapse`（上一轮已加）。
+
+验证：两端 `pnpm verify` 通过（Tauri 42 tests，Web 35 tests）。
+
+仍需人工确认：
+
+- FAB 在 Tauri 窗口尺寸变化下位置自适应（仅在初始化时设置，拖动后不重新计算，未来可加入窗口resize监听）。
+- 拖动跨 DPI 缩放坐标精度。
+
+### FAB 初始位置闪烁修复（2026-09-05）
+
+用户报告：AI图标首次渲染出现在左上角 (0, 0)，点击后才跳到右下角。
+
+根因：`fabLeft` 和 `fabTop` 默认为 `ref(0)`，初始化函数 `placeFabBottomRight()` 仅在 `onFabPointerDown` 中调用，所以首次渲染时按钮在 (0, 0)，首次点击时才更新到右下角。
+
+修复：两端 `components/panels/AiAssistant.vue` 同步计算 FAB 初始位置：
+
+```typescript
+const fabLeft = ref(Math.max(0, window.innerWidth - FAB_SIZE - FAB_MARGIN));
+const fabTop = ref(Math.max(0, window.innerHeight - FAB_SIZE - FAB_MARGIN));
+```
+
+并删除多余的 `placeFabBottomRight()` 函数与 `initialized` 标志，因为现在初始化发生在 setup 阶段。
+
+验证：两端 `pnpm typecheck`、`pnpm lint`、`pnpm test` 通过（Tauri 42 tests，Web 35 tests）。
+
+### 节点高亮 + 双击内联编辑（2026-09-05）
+
+用户报告两点：
+
+1. 选中节点背景色太暗、不够明显。
+2. 双击节点应该直接编辑文本，而不是弹原生 prompt。
+
+**修复 1：选中高亮**
+
+markmap 0.18 默认 `--markmap-highlight-node-bg: #ff02`（4位 hex 即 `#ff000002`，0.78% 透明度），实际近乎不可见。覆盖 CSS 变量使高亮明显：
+
+```css
+.canvas > svg :deep(.markmap) {
+  --markmap-highlight-node-bg: rgba(59, 130, 246, 0.28);
+}
+.canvas > svg :deep(.markmap-dark .markmap) {
+  --markmap-highlight-node-bg: rgba(96, 165, 250, 0.32);
+}
+.canvas > svg :deep(.markmap-highlight rect) {
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  rx: 4;
+  ry: 4;
+}
+```
+
+说明：markmap 内部 CSS 通过 `<style>` 节点注入到 SVG，自定义 CSS 通过 `:deep()` 选择器穿透 scoped。亮/暗主题分开调透明度。
+
+**修复 2：双击内联编辑**
+
+把 `promptRename()` 中的 `window.prompt` 替换为内联 `<input>` 覆盖在节点上：
+
+- 通过 `querySelectorAll('g.markmap-node')` 找到对应节点的 SVG `<g>`，使用 `getBoundingClientRect()` 获取屏幕坐标。
+- 在该坐标处显示 `<input>`，自动聚焦并全选。
+- Enter 应用并提交；Escape 取消；blur 取消。
+- 边界处理：测量坐标为 0 时回退到屏幕中心。
+
+```typescript
+function startInlineEdit(id: string): void {
+  const node = findNode(store.doc.root, id);
+  if (!node) return;
+  const rect = measureNode(id);
+  inlineEdit.value = { id, text: node.text, ...rect };
+  void nextTick(() => {
+    inlineInputRef.value?.focus();
+    inlineInputRef.value?.select();
+  });
+}
+```
+
+样式：
+
+```css
+.inline-edit {
+  position: fixed;
+  z-index: 1000;
+  margin: 0;
+  padding: 2px 6px;
+  font: inherit;
+  background: var(--bg);
+  color: var(--fg);
+  border: 2px solid var(--accent);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  outline: none;
+}
+```
+
+修改文件：两端 `components/editor/MindEditor.vue`。
+依赖：复用 `core/tree.ts::findNode`，未引入新依赖。
+
+验证：两端 `pnpm verify` 通过（Tauri 42 tests，Web 35 tests）。
+
+仍需人工确认：
+
+- markmap 高亮 box 是否与节点文本的圆角矩形重叠对齐（markmap 0.18 的高亮 rect 边距为 4/k，使用了 `rect.x -= s` 微调，可能在缩放时略微错位）。
+- 内联编辑器在 markmap zoom/pan 状态下，如果用户在编辑期间触发 pan，编辑器不会跟随节点位置（仅在 dblclick 时刻锁定坐标）。
 - 增加 Tauri Driver/WebdriverIO 原生 E2E。
+
+### 回退双击内联编辑、简化选中样式（2026-09-05）
+
+用户反馈：
+
+1. 双击后输入框没有插入光标，无法编辑文本（focus 时机竞态）。
+2. 设计本意：重命名通过右键菜单触发，不需要双击内联编辑。
+3. 选中时不应再有边框（与重命名时 input 边框重复）。
+
+修复：两端 `components/editor/MindEditor.vue` 回退到精简版：
+
+- 删除 `inlineEdit`/`inlineInputRef` ref 与相关状态。
+- 删除 `startInlineEdit`、`focusInlineInput`、`commitInlineEdit`、`cancelInlineEdit`、`findNodeText`、`onInlineInputKey`、`measureNode` 等函数。
+- 删除 `findNode` import（不再需要）。
+- 删除 `watch(inlineEdit)`。
+- 删除 `onSvgDblClick` 监听与对应函数。
+- 删除模板中 `<input v-if="inlineEdit">`。
+- 恢复 `promptRename()` 使用 `window.prompt`（右键菜单触发）。
+- 删除 `.inline-edit` 相关 CSS。
+- 简化 markmap 高亮 CSS：只覆盖背景色变量，删除 `.markmap-highlight rect` 的 stroke 边框。
+
+Web 端修复 `exportSvg`/`exportPng` 多余的第三个参数（Web 版 `core/file.ts` 未实现 title 参数）。
+
+验证：两端 `pnpm verify` 通过（Tauri 42 tests，Web 35 tests）。
+
+新交互契约：
+
+- 左键点击：选中节点（仅淡色背景填充，无边框）。
+- 右键节点：弹出上下文菜单；"重命名"项调用 `window.prompt`。
+- 双击：不再特殊处理。
 
 ## 8. 常用验证命令
 
@@ -505,6 +737,21 @@ AI 请求超时与取消已在 Web/Tauri 两端实现：
 - 验证：Tauri `pnpm verify` 通过（42 tests）并生产构建通过；Web `pnpm verify` 通过（35 tests）并生产构建通过。
 
 本项状态：**完成**。仍需用真实慢响应 endpoint 人工检查按钮和 Toast。下一项为 S5。
+
+#### S5 完成记录（2026-09-05）
+
+用户可见硬编码文本已清理：
+
+- `stores/mindmap.ts` 移除 `addChild/addSibling` 中文默认参数；调用方传入 `t('node.defaultName')`。
+- `core/file.ts` 新增 `title` 参数；`exportSvg/exportPng/saveFile/openFile` 不再硬编码对话框标题。
+- `core/file.ts` (Web) 用 `description` 参数替代硬编码 “Markdown 思维导图”。
+- `stores/mindmap.ts` `saveAs/open` 接收可选 title/description 参数并透传。
+- `App.vue` “Tauri 启动信息获取失败” 改用 `t('app.tauriStartupFailed')`。
+- `SettingsView.vue` placeholder 改用 i18n（`settings.savePathWeb/aiEndpointPlaceholder/aiModelPlaceholder`）。
+- 四语言共 8 个 locale 文件新增 `node.defaultName`、`dialog.*`、`app.tauriStartupFailed`、`settings.savePathWeb`、`settings.aiEndpointPlaceholder`、`settings.aiModelPlaceholder`。
+- 顺手修复 Web 端 4 个 locale 中重复的 `defaultPrompt` key。
+
+本项状态：**完成**。仍需在新 GUI 构建中人工确认 Tauri 对话框标题显示正确语言、Siri 替代位置不存在。
 
 #### S5：清理用户可见硬编码文本（中等，适合拆批）
 
