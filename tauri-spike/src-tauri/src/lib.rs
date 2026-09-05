@@ -8,6 +8,8 @@
  * - 插件: dialog, fs, opener, shell
  */
 mod commands;
+pub mod mcp;
+pub mod mcp_http;
 
 use commands::{
     copy_file, exit_app, file_exists, get_app_version, get_user_data_dir, mcp_rpc_request,

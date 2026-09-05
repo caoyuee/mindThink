@@ -5,6 +5,7 @@ description = "DesktopNaotu - Modern mind map desktop app"
 authors = ["NaoTu Team"]
 edition = "2021"
 rust-version = "1.77"
+default-run = "desktop-naotu"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/
 

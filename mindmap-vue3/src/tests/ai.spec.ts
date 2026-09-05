@@ -40,6 +40,7 @@ describe('core/ai', () => {
     ).toBe(-32601);
     expect(JSON.parse(processMcpMessage('{bad', context)).error.code).toBe(-32700);
     const line = encodeMcpMessage({ jsonrpc: '2.0', id: 3, method: 'initialize' });
-    expect(decodeMcpMessage(line.trim())).toMatchObject({ method: 'initialize' });
+    expect(decodeMcpMessage(line)).toMatchObject({ method: 'initialize' });
+    expect(() => decodeMcpMessage(`${line}\n`)).toThrow('单行');
   });
 });

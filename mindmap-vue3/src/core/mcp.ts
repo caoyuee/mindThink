@@ -118,10 +118,12 @@ export function encodeMcpMessage(value: McpRpcRequest | McpRpcResponse): string 
   return `${JSON.stringify(value)}\n`;
 }
 export function decodeMcpMessage(line: string): McpRpcRequest | McpRpcResponse {
-  if (line.includes('\n') || line.includes('\r')) throw new Error('MCP 消息必须是单行 JSON');
+  const normalized = line.endsWith('\n') ? line.slice(0, -1).replace(/\r$/, '') : line;
+  if (normalized.includes('\n') || normalized.includes('\r'))
+    throw new Error('MCP 消息必须是单行 JSON');
   let value: unknown;
   try {
-    value = JSON.parse(line) as unknown;
+    value = JSON.parse(normalized) as unknown;
   } catch (error) {
     throw new Error(`MCP 消息不是有效 JSON: ${(error as Error).message}`);
   }

@@ -166,14 +166,53 @@ cargo check
 cargo clippy         # 推荐
 ```
 
-## 7. 文档索引
+## 7. MCP stdio Server
+
+独立 MCP stdio binary 与桌面应用复用同一套 Rust JSON-RPC 分派：
+
+```bash
+cd src-tauri
+cargo run --bin desktop-naotu-mcp
+```
+
+Server 从 stdin 按行读取 JSON-RPC，并将响应逐行写到 stdout。可通过
+`DESKTOP_NAOTU_MCP_CONTEXT` 注入启动时的脑图上下文快照；未设置时使用一个空白脑图：
+
+```json
+{
+  "tools": [],
+  "resources": [{ "uri": "mindmap://current" }],
+  "current": { "title": "Demo", "markdown": "- Demo\n", "nodeCount": 1 },
+  "nodes": {}
+}
+```
+
+当前 stdio Server 支持 `initialize`、`tools/list`、`resources/list`、
+`resources/read` 和 `tools/call` 请求封装。写操作 payload 仍需由桌面前端通过 Pinia
+store actions 执行，防止绕过撤销/重做模型。环境变量提供的是启动时快照，不会自动跟随
+已运行窗口中的文档变化。
+
+独立 HTTP Server 复用相同协议分派，且只绑定 loopback：
+
+```bash
+cd src-tauri
+cargo run --bin desktop-naotu-mcp-http
+curl -X POST http://127.0.0.1:8765/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize"}'
+```
+
+可通过 `DESKTOP_NAOTU_MCP_PORT` 修改端口。Server 仅接受 `POST /mcp`，请求体上限为
+1 MiB；它不监听外部网络接口，也不会自动执行写工具。
+
+## 8. 文档索引
 
 - [AGENTS.md](AGENTS.md) — AI Agent 规则（Tauri 特定红线）
 - [CONVENTIONS.md](CONVENTIONS.md) — 代码风格
 - [ARCHITECTURE.md](ARCHITECTURE.md) — 架构总览
 - [docs/BUILD.md](docs/BUILD.md) — 跨平台构建指南
 
-## 8. 路线图
+## 9. 路线图
 
 - [x] Tauri 2.x 工程脚手架
 - [x] Rust 自定义命令（read/write/dialog/exit）

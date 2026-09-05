@@ -230,6 +230,14 @@ pub async fn mcp_rpc_request(
     request: serde_json::Value,
     context: serde_json::Value,
 ) -> AppResult<serde_json::Value> {
+    Ok(crate::mcp::handle_rpc(request, context))
+}
+
+#[cfg(test)]
+fn handle_mcp_rpc(
+    request: serde_json::Value,
+    context: serde_json::Value,
+) -> AppResult<serde_json::Value> {
     let object = request
         .as_object()
         .ok_or_else(|| AppError::InvalidArgument("MCP 请求必须是对象".to_string()))?;
@@ -271,9 +279,47 @@ pub async fn mcp_rpc_request(
                 current.cloned().map(|text| {
                     serde_json::json!({ "contents": [{ "uri": uri, "mimeType": "text/markdown", "text": text }] })
                 })
+            } else if let Some(node_id) =
+                uri.and_then(|value| value.strip_prefix("mindmap://node/"))
+            {
+                context
+                    .get("nodes")
+                    .and_then(|nodes| nodes.get(node_id))
+                    .map(|node| {
+                        serde_json::json!({
+                            "contents": [{
+                                "uri": uri,
+                                "mimeType": "application/json",
+                                "text": node.to_string()
+                            }]
+                        })
+                    })
             } else {
                 None
             }
+        }
+        "tools/call" => {
+            let name = object
+                .get("params")
+                .and_then(|params| params.get("name"))
+                .and_then(|value| value.as_str());
+            name.map(|tool| {
+                let arguments = object
+                    .get("params")
+                    .and_then(|params| params.get("arguments"))
+                    .cloned()
+                    .unwrap_or_else(|| serde_json::json!({}));
+                serde_json::json!({
+                    "content": [{
+                        "type": "text",
+                        "text": serde_json::json!({
+                            "requestId": id.to_string(),
+                            "tool": tool,
+                            "arguments": arguments
+                        }).to_string()
+                    }]
+                })
+            })
         }
         _ => {
             return Ok(
@@ -286,5 +332,80 @@ pub async fn mcp_rpc_request(
         None => Ok(
             serde_json::json!({ "jsonrpc": "2.0", "id": id, "error": { "code": -32602, "message": "MCP 资源或上下文参数无效" } }),
         ),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::handle_mcp_rpc;
+    use serde_json::json;
+
+    fn context() -> serde_json::Value {
+        json!({
+            "tools": [{ "name": "get_current_mindmap" }],
+            "resources": [{ "uri": "mindmap://current" }],
+            "current": { "markdown": "- Root\n" },
+            "nodes": { "root": { "id": "root", "text": "Root" } }
+        })
+    }
+
+    #[test]
+    fn initializes_and_lists_resources() {
+        let initialized = handle_mcp_rpc(
+            json!({ "jsonrpc": "2.0", "id": 1, "method": "initialize" }),
+            context(),
+        )
+        .expect("initialize should succeed");
+        assert_eq!(initialized["result"]["protocolVersion"], "2024-11-05");
+
+        let listed = handle_mcp_rpc(
+            json!({ "jsonrpc": "2.0", "id": 2, "method": "resources/list" }),
+            context(),
+        )
+        .expect("resources/list should succeed");
+        assert_eq!(listed["result"]["resources"][0]["uri"], "mindmap://current");
+    }
+
+    #[test]
+    fn reads_current_resource_and_reports_protocol_errors() {
+        let resource = handle_mcp_rpc(
+            json!({ "jsonrpc": "2.0", "id": 3, "method": "resources/read", "params": { "uri": "mindmap://current" } }),
+            context(),
+        )
+        .expect("resources/read should succeed");
+        assert_eq!(resource["result"]["contents"][0]["text"], "- Root\n");
+
+        let node = handle_mcp_rpc(
+            json!({ "jsonrpc": "2.0", "id": 4, "method": "resources/read", "params": { "uri": "mindmap://node/root" } }),
+            context(),
+        )
+        .expect("node resource should succeed");
+        assert_eq!(
+            node["result"]["contents"][0]["mimeType"],
+            "application/json"
+        );
+        assert!(node["result"]["contents"][0]["text"]
+            .as_str()
+            .is_some_and(|text| text.contains("Root")));
+
+        let tool_call = handle_mcp_rpc(
+            json!({ "jsonrpc": "2.0", "id": 5, "method": "tools/call", "params": { "name": "update_node", "arguments": { "id": "root", "text": "Changed" } } }),
+            context(),
+        )
+        .expect("tools/call should succeed");
+        assert!(tool_call["result"]["content"][0]["text"]
+            .as_str()
+            .is_some_and(|text| text.contains("update_node")));
+
+        let unknown = handle_mcp_rpc(
+            json!({ "jsonrpc": "2.0", "id": 4, "method": "unknown" }),
+            context(),
+        )
+        .expect("unknown method should produce an RPC response");
+        assert_eq!(unknown["error"]["code"], -32601);
+
+        let invalid = handle_mcp_rpc(json!({ "jsonrpc": "1.0", "id": 5 }), context())
+            .expect("invalid version should produce an RPC response");
+        assert_eq!(invalid["error"]["code"], -32600);
     }
 }

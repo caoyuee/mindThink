@@ -13,7 +13,8 @@ import {
 describe('core/mcp transport messages', () => {
   it('round-trips a single-line JSON RPC request', () => {
     const message = { jsonrpc: '2.0' as const, id: 1, method: 'tools/list' };
-    expect(decodeMcpMessage(encodeMcpMessage(message).trim())).toEqual(message);
+    expect(decodeMcpMessage(encodeMcpMessage(message))).toEqual(message);
+    expect(() => decodeMcpMessage(`${encodeMcpMessage(message)}\n`)).toThrow('单行');
     expect(() => decodeMcpMessage('{"jsonrpc":"2.0",\n"method":"tools/list"}')).toThrow('单行');
     const error = processMcpMessage('{bad', createMcpContext({ root: createNode('Root') }));
     expect(JSON.parse(error).error.code).toBe(-32700);
