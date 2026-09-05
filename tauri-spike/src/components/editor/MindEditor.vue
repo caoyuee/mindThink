@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 核心: markmap 渲染 + 交互层（点击选中、右键菜单、双击重命名）
+ * 核心: markmap 渲染 + 交互层（点击选中、右键菜单）
  *
  * AGENTS.md 1.3: markmap 集成的唯一入口
  */
@@ -81,10 +81,8 @@ function bindNodeEvents(): void {
   if (!svgRef.value) return;
   const svg = svgRef.value;
   svg.removeEventListener('click', onSvgClick);
-  svg.removeEventListener('dblclick', onSvgDblClick);
   svg.removeEventListener('contextmenu', onSvgContextMenu);
   svg.addEventListener('click', onSvgClick);
-  svg.addEventListener('dblclick', onSvgDblClick);
   svg.addEventListener('contextmenu', onSvgContextMenu);
 }
 
@@ -107,13 +105,6 @@ function onSvgClick(e: MouseEvent): void {
   store.select(p.id);
   if (mm && selectedMarkmapNode.value) void mm.setHighlight(selectedMarkmapNode.value as never);
   closeMenu();
-}
-
-function onSvgDblClick(e: MouseEvent): void {
-  const p = payloadOf(e.target);
-  if (!p) return;
-  store.select(p.id);
-  promptRename(p.id);
 }
 
 function onSvgContextMenu(e: MouseEvent): void {
@@ -328,5 +319,19 @@ defineExpose({ closeMenu });
   width: 100%;
   height: 100%;
   display: block;
+}
+.canvas > svg :deep(g.markmap-node) {
+  cursor: pointer;
+}
+.canvas > svg :deep(g.markmap-node circle),
+.canvas > svg :deep(g.markmap-node rect) {
+  cursor: pointer;
+}
+/* 覆盖 markmap 默认几乎透明的 #ff02 高亮，只填充背景色，无边框 */
+.canvas > svg :deep(.markmap) {
+  --markmap-highlight-node-bg: rgba(59, 130, 246, 0.28);
+}
+.canvas > svg :deep(.markmap-dark .markmap) {
+  --markmap-highlight-node-bg: rgba(96, 165, 250, 0.32);
 }
 </style>

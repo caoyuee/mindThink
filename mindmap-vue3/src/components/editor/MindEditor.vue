@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 核心: markmap 渲染 + 交互层（点击选中、右键菜单、双击重命名）
+ * 核心: markmap 渲染 + 交互层（点击选中、右键菜单）
  *
  * AGENTS.md 1.3: markmap 集成的唯一入口
  */
@@ -81,10 +81,8 @@ function bindNodeEvents(): void {
   if (!svgRef.value) return;
   const svg = svgRef.value;
   svg.removeEventListener('click', onSvgClick);
-  svg.removeEventListener('dblclick', onSvgDblClick);
   svg.removeEventListener('contextmenu', onSvgContextMenu);
   svg.addEventListener('click', onSvgClick);
-  svg.addEventListener('dblclick', onSvgDblClick);
   svg.addEventListener('contextmenu', onSvgContextMenu);
 }
 
@@ -93,7 +91,6 @@ function payloadOf(target: EventTarget | null): { id: string; isRoot: boolean } 
   if (!target) return null;
   const el = (target as Element).closest?.('g.markmap-node') as SVGGElement | null;
   if (!el) return null;
-  // markmap 0.18 直接把运行时 INode 挂在 g.markmap-node.__data__ 上。
   const node = (el as { __data__?: MarkmapRuntimeNode }).__data__;
   const id = node?.payload?.id;
   if (!node || !id) return null;
@@ -107,13 +104,6 @@ function onSvgClick(e: MouseEvent): void {
   store.select(p.id);
   if (mm && selectedMarkmapNode.value) void mm.setHighlight(selectedMarkmapNode.value as never);
   closeMenu();
-}
-
-function onSvgDblClick(e: MouseEvent): void {
-  const p = payloadOf(e.target);
-  if (!p) return;
-  store.select(p.id);
-  promptRename(p.id);
 }
 
 function onSvgContextMenu(e: MouseEvent): void {
@@ -145,20 +135,20 @@ function serializedSvg(): string {
   if (!svgRef.value) throw new Error('脑图尚未渲染');
   const clone = svgRef.value.cloneNode(true) as SVGSVGElement;
   clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-  clone.setAttribute('width', String(svgRef.value.clientWidth || 1200));
-  clone.setAttribute('height', String(svgRef.value.clientHeight || 800));
+  clone.setAttribute('width', String(svgRef.value.clientWidth));
+  clone.setAttribute('height', String(svgRef.value.clientHeight));
   return new XMLSerializer().serializeToString(clone);
 }
 
 async function exportCurrentSvg(): Promise<void> {
-  if (await exportSvg(serializedSvg(), `${store.doc.root.text || 'mindmap'}.svg`))
-    toast.success(t('toast.exported'));
+  const ok = await exportSvg(serializedSvg(), `${store.doc.root.text || 'mindmap'}.svg`);
+  if (ok) toast.success(t('toast.exported'));
 }
 
 async function exportCurrentPng(): Promise<void> {
-  const url = URL.createObjectURL(
-    new Blob([serializedSvg()], { type: 'image/svg+xml;charset=utf-8' }),
-  );
+  const svg = serializedSvg();
+  const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
   try {
     const image = new Image();
     image.src = url;
@@ -171,6 +161,8 @@ async function exportCurrentPng(): Promise<void> {
     canvas.height = svgRef.value?.clientHeight || 800;
     const context = canvas.getContext('2d');
     if (!context) throw new Error('浏览器不支持 Canvas');
+    context.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg-canvas');
+    context.fillRect(0, 0, canvas.width, canvas.height);
     context.drawImage(image, 0, 0, canvas.width, canvas.height);
     const png = await new Promise<Blob>((resolve, reject) =>
       canvas.toBlob(
@@ -264,7 +256,7 @@ defineExpose({ closeMenu });
 
 <template>
   <div class="canvas" @click="closeMenu">
-    <div class="view-actions">
+    <div class="export-actions">
       <button :title="t('toolbar.exportSvg')" @click.stop="void exportCurrentSvg()">
         {{ t('toolbar.exportSvg') }}
       </button>
@@ -272,8 +264,8 @@ defineExpose({ closeMenu });
         {{ t('toolbar.exportPng') }}
       </button>
       <button
-        :disabled="!selectedMarkmapNode"
         :title="t('toolbar.toggleNode')"
+        :disabled="!selectedMarkmapNode"
         @click.stop="void toggleSelectedNode()"
       >
         {{ t('toolbar.toggleNode') }}
@@ -298,31 +290,39 @@ defineExpose({ closeMenu });
   position: relative;
   overflow: hidden;
 }
-.view-actions {
+.export-actions {
   position: absolute;
   top: 12px;
   right: 12px;
   z-index: 2;
-}
-.view-actions {
   display: flex;
   gap: 6px;
 }
-.view-actions button {
-  padding: 6px 8px;
+.export-actions button {
+  padding: 5px 8px;
   background: var(--bg-elev);
   color: var(--fg);
   border: 1px solid var(--border);
-  border-radius: 3px;
+  border-radius: 4px;
   cursor: pointer;
-}
-.view-actions button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 .canvas > svg {
   width: 100%;
   height: 100%;
   display: block;
+}
+.canvas > svg :deep(g.markmap-node) {
+  cursor: pointer;
+}
+.canvas > svg :deep(g.markmap-node circle),
+.canvas > svg :deep(g.markmap-node rect) {
+  cursor: pointer;
+}
+/* 覆盖 markmap 默认几乎透明的 #ff02 高亮，只填充背景色，无边框 */
+.canvas > svg :deep(.markmap) {
+  --markmap-highlight-node-bg: rgba(59, 130, 246, 0.28);
+}
+.canvas > svg :deep(.markmap-dark .markmap) {
+  --markmap-highlight-node-bg: rgba(96, 165, 250, 0.32);
 }
 </style>
