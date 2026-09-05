@@ -31,25 +31,31 @@ declare global {
   }
 }
 
-const FS_OPEN_OPTS = {
-  types: [
-    {
-      description: 'Markdown 思维导图',
-      accept: { 'text/markdown': ['.md', '.markdown', '.km'] },
-    },
-  ],
-  multiple: false,
-};
+const DEFAULT_MINDMAP_DESCRIPTION = 'Mind map';
 
-const FS_SAVE_OPTS = {
-  suggestedName: 'untitled.md',
-  types: [
-    {
-      description: 'Markdown 思维导图',
-      accept: { 'text/markdown': ['.md'] },
-    },
-  ],
-};
+function fsOpenOpts(description: string) {
+  return {
+    types: [
+      {
+        description,
+        accept: { 'text/markdown': ['.md', '.markdown', '.km'] },
+      },
+    ],
+    multiple: false,
+  };
+}
+
+function fsSaveOpts(description: string, suggestedName: string) {
+  return {
+    suggestedName,
+    types: [
+      {
+        description,
+        accept: { 'text/markdown': ['.md'] },
+      },
+    ],
+  };
+}
 
 export async function exportSvg(content: string, suggestedName = 'mindmap.svg'): Promise<boolean> {
   download(content, suggestedName, 'image/svg+xml;charset=utf-8');
@@ -61,11 +67,15 @@ export async function exportPng(data: Blob, suggestedName = 'mindmap.png'): Prom
   return true;
 }
 
-export async function saveFile(content: string, suggestedName = 'untitled.md'): Promise<boolean> {
+export async function saveFile(
+  content: string,
+  suggestedName = 'untitled.md',
+  description = DEFAULT_MINDMAP_DESCRIPTION,
+): Promise<boolean> {
   // 1) File System Access API
   if (window.showSaveFilePicker) {
     try {
-      const handle = await window.showSaveFilePicker({ ...FS_SAVE_OPTS, suggestedName });
+      const handle = await window.showSaveFilePicker(fsSaveOpts(description, suggestedName));
       const writable = await handle.createWritable();
       await writable.write(content);
       await writable.close();
@@ -81,11 +91,13 @@ export async function saveFile(content: string, suggestedName = 'untitled.md'): 
   return true;
 }
 
-export async function openFile(): Promise<{ name: string; content: string } | null> {
+export async function openFile(
+  description = DEFAULT_MINDMAP_DESCRIPTION,
+): Promise<{ name: string; content: string } | null> {
   // 1) File System Access API
   if (window.showOpenFilePicker) {
     try {
-      const [handle] = await window.showOpenFilePicker(FS_OPEN_OPTS);
+      const [handle] = await window.showOpenFilePicker(fsOpenOpts(description));
       const file = await handle.getFile();
       const content = await file.text();
       return { name: file.name, content };

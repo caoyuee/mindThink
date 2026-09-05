@@ -3,7 +3,7 @@
  * 设置视图
  */
 import { useI18n } from 'vue-i18n';
-import { useConfigStore } from '@/stores/config';
+import { RECENT_FILES_MAX, RECENT_FILES_MIN, useConfigStore } from '@/stores/config';
 import { useUiStore } from '@/stores/ui';
 import { useToastStore } from '@/composables/useToast';
 import { setLocale, type AppLocale, SUPPORTED_LOCALES, LOCALE_LABELS } from '@/i18n';
@@ -58,11 +58,26 @@ function onSave(): void {
     </section>
 
     <section class="setting">
+      <label for="recent-max">{{ t('settings.recentMaxNum') }}</label>
+      <input
+        id="recent-max"
+        v-model.number="config.userConfig.recentMaxNum"
+        type="number"
+        :min="RECENT_FILES_MIN"
+        :max="RECENT_FILES_MAX"
+        step="1"
+      />
+      <small>{{
+        t('settings.recentMaxNumHint', { min: RECENT_FILES_MIN, max: RECENT_FILES_MAX })
+      }}</small>
+    </section>
+
+    <section class="setting">
       <label>{{ t('settings.savePath') }}</label>
       <input
         v-model="config.userConfig.defSavePath"
         type="text"
-        placeholder="(Web 阶段不可用)"
+        :placeholder="t('settings.savePathWeb')"
         disabled
       />
       <small>{{ t('settings.comingSoon') }}</small>
@@ -73,13 +88,17 @@ function onSave(): void {
       <input
         v-model="config.userConfig.aiEndpoint"
         type="text"
-        placeholder="https://api.example.com/v1"
+        :placeholder="t('settings.aiEndpointPlaceholder')"
       />
     </section>
 
     <section class="setting">
       <label>{{ t('settings.aiModel') }}</label>
-      <input v-model="config.userConfig.aiModel" type="text" placeholder="model-name" />
+      <input
+        v-model="config.userConfig.aiModel"
+        type="text"
+        :placeholder="t('settings.aiModelPlaceholder')"
+      />
     </section>
 
     <section class="setting">
@@ -130,7 +149,8 @@ h1 {
   font-size: 13px;
 }
 .setting select,
-.setting input[type='text'] {
+.setting input[type='text'],
+.setting input[type='number'] {
   padding: 6px 10px;
   background: var(--bg);
   color: var(--fg);

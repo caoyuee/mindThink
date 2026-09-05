@@ -55,6 +55,7 @@ export const useMindmapStore = defineStore('mindmap', () => {
   const selectedId = ref<string | null>(null);
   const documentPath = ref<string | null>(null);
   const isDirty = ref(false);
+  const historyRevision = ref(0);
 
   /** markmap 实例（不参与响应式追踪） */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -75,10 +76,22 @@ export const useMindmapStore = defineStore('mindmap', () => {
     selectedId.value ? findNode(doc.value.root, selectedId.value) : null,
   );
   const search = (query: string): MindNode[][] => searchNodes(doc.value.root, query);
-  const canUndo = computed(() => stack.canUndo());
-  const canRedo = computed(() => stack.canRedo());
-  const lastUndoName = computed(() => stack.peekUndoName());
-  const lastRedoName = computed(() => stack.peekRedoName());
+  const canUndo = computed(() => {
+    void historyRevision.value;
+    return stack.canUndo();
+  });
+  const canRedo = computed(() => {
+    void historyRevision.value;
+    return stack.canRedo();
+  });
+  const lastUndoName = computed(() => {
+    void historyRevision.value;
+    return stack.peekUndoName();
+  });
+  const lastRedoName = computed(() => {
+    void historyRevision.value;
+    return stack.peekRedoName();
+  });
 
   /**
    * ⭐ 私有: 唯一可直接修改 doc.value 的入口
@@ -94,6 +107,7 @@ export const useMindmapStore = defineStore('mindmap', () => {
     doc.value = newDoc;
     if (opts.resetHistory) {
       stack.clear();
+      historyRevision.value += 1;
       selectedId.value = null;
     }
   }
@@ -103,6 +117,7 @@ export const useMindmapStore = defineStore('mindmap', () => {
     const before = cloneDoc(doc.value);
     const after = doIt(cloneDoc(doc.value));
     stack.executeWith(before, after, name);
+    historyRevision.value += 1;
     isDirty.value = true;
   }
 
@@ -134,16 +149,19 @@ export const useMindmapStore = defineStore('mindmap', () => {
     }, 'command.updateNote');
   }
 
-  function addChild(parentId: string, text = '新节点'): void {
+  function addChild(parentId: string, text: string): string | null {
+    if (!findNode(doc.value.root, parentId)) return null;
+    const child = createNode(text);
     applyEdit((d) => {
       const parent = findNode(d.root, parentId);
-      if (!parent) return d;
-      parent.children.push(createNode(text));
+      if (parent) parent.children.push(child);
       return d;
     }, 'command.addChild');
+    selectedId.value = child.id;
+    return child.id;
   }
 
-  function addSibling(nodeId: string, text = '新节点'): void {
+  function addSibling(nodeId: string, text: string): void {
     applyEdit((d) => {
       const node = findNode(d.root, nodeId);
       if (!node || node === d.root) return d;
@@ -202,6 +220,7 @@ export const useMindmapStore = defineStore('mindmap', () => {
   //#region 撤销/重做
   function undo(): void {
     if (stack.undo()) {
+      historyRevision.value += 1;
       isDirty.value = true;
       // 选中可能失效
       if (selectedId.value && !findNode(doc.value.root, selectedId.value)) {
@@ -211,6 +230,7 @@ export const useMindmapStore = defineStore('mindmap', () => {
   }
   function redo(): void {
     if (stack.redo()) {
+      historyRevision.value += 1;
       isDirty.value = true;
       if (selectedId.value && !findNode(doc.value.root, selectedId.value)) {
         selectedId.value = null;
@@ -233,8 +253,8 @@ export const useMindmapStore = defineStore('mindmap', () => {
     return true;
   }
 
-  async function saveAs(): Promise<boolean> {
-    const r = await saveFile(markdown(), `${doc.value.root.text || 'untitled'}.md`);
+  async function saveAs(dialogTitle = 'Save Mind map'): Promise<boolean> {
+    const r = await saveFile(markdown(), `${doc.value.root.text || 'untitled'}.md`, dialogTitle);
     if (!r.ok) return false;
     documentPath.value = r.path ?? null;
     isDirty.value = false;
@@ -242,8 +262,8 @@ export const useMindmapStore = defineStore('mindmap', () => {
     return true;
   }
 
-  async function open(): Promise<boolean> {
-    const r = await openFile();
+  async function open(dialogTitle = 'Open Mind map'): Promise<boolean> {
+    const r = await openFile(dialogTitle);
     if (!r) return false;
     loadOpenedFile(r);
     return true;

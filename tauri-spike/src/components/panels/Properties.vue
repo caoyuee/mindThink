@@ -29,7 +29,7 @@ function renameRoot(e: Event) {
 }
 
 function addChild() {
-  if (store.selectedId) store.addChild(store.selectedId);
+  if (store.selectedId) store.addChild(store.selectedId, t('node.defaultName'));
 }
 
 function removeSelected() {

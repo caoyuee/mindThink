@@ -74,7 +74,8 @@
     "indent": "→ Einrücken",
     "outdent": "← Ausrücken",
     "delete": "✕ Knoten löschen",
-    "deleteConfirm": "Diesen Knoten und alle untergeordneten Knoten löschen?"
+    "deleteConfirm": "Diesen Knoten und alle untergeordneten Knoten löschen?",
+    "defaultName": "Neuer Knoten"
   },
   "command": {
     "renameNode": "Knoten umbenennen",
@@ -119,13 +120,19 @@
     "undo": "Rückgängig",
     "redo": "Wiederherstellen"
   },
+  "dialog": {
+    "saveMindmap": "Mindmap",
+    "openMindmap": "Mindmap"
+  },
   "ai": {
     "title": "KI-Assistent",
     "prompt": "Frage oder Strukturierungswunsch eingeben",
     "defaultPrompt": "Bitte verbessere die Struktur dieser Mindmap und nenne fehlende Themen",
-    "defaultPrompt": "Bitte verbessere die Struktur dieser Mindmap und nenne fehlende Themen",
     "ask": "KI fragen",
     "loading": "Anfrage läuft…",
+    "cancel": "Anfrage abbrechen",
+    "cancelled": "KI-Anfrage abgebrochen",
+    "timeout": "Zeitüberschreitung der KI-Anfrage. Bitte später erneut versuchen",
     "configureFirst": "Zuerst KI-Endpunkt und Modell in den Einstellungen konfigurieren",
     "applyNote": "Vorschlag als Notiz des aktuellen Knotens anwenden"
   },
@@ -137,6 +144,8 @@
     "dark": "Dunkel",
     "auto": "Automatisch",
     "autoSave": "Automatisch speichern",
+    "recentMaxNum": "Anzahl zuletzt geöffneter Dateien",
+    "recentMaxNumHint": "Zwischen {min} und {max} Dateien behalten",
     "savePath": "Standard-Speicherpfad",
     "saveLogs": "Protokolle auf Festplatte speichern",
     "save": "Einstellungen speichern",

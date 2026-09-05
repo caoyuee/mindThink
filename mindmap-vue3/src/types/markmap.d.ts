@@ -19,5 +19,11 @@ export interface MarkmapNode {
   };
 }
 
+/** markmap-view 运行时挂到 g.markmap-node.__data__ 的节点结构。 */
+export interface MarkmapRuntimeNode extends MarkmapNode {
+  depth?: number;
+  state?: { depth?: number };
+}
+
 /** 兼容旧名称（IPureNode） */
 export type IPureNode = MarkmapNode;

@@ -11,7 +11,7 @@
  * Tauri 集成: 平台检测在 useUiStore 初始化时自动完成,
  * 与 AGENTS.md "禁止直接修改环境" 一致。
  */
-import { onBeforeUnmount, onMounted } from 'vue';
+import { onBeforeUnmount, onMounted, watch } from 'vue';
 import { emit, listen, type Event as TauriEvent, type UnlistenFn } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
@@ -32,6 +32,8 @@ import {
   parseMcpRpcRequest,
 } from '@/core/mcp';
 import { router } from '@/router';
+import { buildDocumentTitle } from '@/core/document-title';
+import { logger } from '@/core/logger';
 
 const ui = useUiStore();
 const toast = useToastStore();
@@ -50,6 +52,31 @@ let stopDragListener: UnlistenFn | null = null;
 let stopMcpListener: UnlistenFn | null = null;
 let stopMcpRpcListener: UnlistenFn | null = null;
 let autoSaveTimer: number | null = null;
+
+watch(
+  [
+    () => mindmap.documentPath,
+    () => mindmap.doc.root.text,
+    () => mindmap.isDirty,
+    () => t('app.name'),
+  ],
+  () => {
+    const title = buildDocumentTitle(
+      mindmap.documentPath,
+      mindmap.doc.root.text,
+      mindmap.isDirty,
+      t('app.name'),
+      t('statusbar.untitledDocument'),
+    );
+    document.title = title;
+    if (platform === 'tauri') {
+      void getCurrentWindow()
+        .setTitle(title)
+        .catch((error: unknown) => logger.warn('更新窗口标题失败', error));
+    }
+  },
+  { immediate: true },
+);
 
 function executeMcpTool(tool: string, args: Record<string, unknown>): unknown {
   switch (tool) {
@@ -215,7 +242,7 @@ onMounted(async () => {
       const version = await fileApi.getAppVersion();
       toast.info(`${t('app.name')} v${version} (Tauri)`, 5000);
     } catch (e) {
-      toast.warn(`Tauri 启动信息获取失败: ${(e as Error).message}`);
+      toast.warn(`${t('app.tauriStartupFailed')}: ${(e as Error).message}`);
     }
   }
 });

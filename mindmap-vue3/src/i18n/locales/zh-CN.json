@@ -74,7 +74,8 @@
     "indent": "→ 右缩进",
     "outdent": "← 左缩进",
     "delete": "✕ 删除节点",
-    "deleteConfirm": "确认删除该节点及其所有子节点？"
+    "deleteConfirm": "确认删除该节点及其所有子节点？",
+    "defaultName": "新节点"
   },
   "command": {
     "renameNode": "重命名节点",
@@ -119,13 +120,19 @@
     "undo": "撤销",
     "redo": "重做"
   },
+  "dialog": {
+    "saveMindmap": "Markdown 思维导图",
+    "openMindmap": "Markdown 思维导图"
+  },
   "ai": {
     "title": "AI 助手",
     "prompt": "输入你的问题或整理要求",
     "defaultPrompt": "请帮我完善这个脑图的结构，并指出缺失的主题",
-    "defaultPrompt": "请帮我完善这个脑图的结构，并指出缺失的主题",
     "ask": "询问 AI",
     "loading": "请求中…",
+    "cancel": "取消请求",
+    "cancelled": "AI 请求已取消",
+    "timeout": "AI 请求超时，请稍后重试",
     "configureFirst": "请先在设置中配置 AI 接口和模型",
     "applyNote": "将建议写入当前节点备注"
   },
@@ -137,8 +144,16 @@
     "dark": "暗色",
     "auto": "跟随系统",
     "autoSave": "自动保存",
+    "recentMaxNum": "最近文件数量",
+    "recentMaxNumHint": "保留 {min} 到 {max} 个最近文件",
     "savePath": "默认保存路径",
+    "savePathWeb": "（Web 阶段不可用）",
     "saveLogs": "保存日志到磁盘",
+    "aiEndpoint": "AI 接口地址",
+    "aiEndpointPlaceholder": "https://api.example.com/v1",
+    "aiModel": "AI 模型",
+    "aiModelPlaceholder": "model-name",
+    "aiApiKey": "AI API 密钥",
     "save": "保存设置",
     "saved": "设置已保存",
     "comingSoon": "该设置将在桌面端(Tauri)阶段实现"

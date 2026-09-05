@@ -29,13 +29,17 @@ const SAMPLE_MD = `# 中心主题
 `;
 
 async function onSave() {
-  const ok = await store.saveAs();
+  const ok = await store.saveAs(t('dialog.saveMindmap'));
   if (ok) toast.success(t('toast.saved'));
 }
 
 async function onOpen() {
-  const ok = await store.open();
+  const ok = await store.open(t('dialog.openMindmap'));
   if (ok) toast.success(t('toast.loaded'));
+}
+
+function addChildToSelection(): void {
+  store.addChild(store.selectedId ?? store.doc.root.id, t('node.defaultName'));
 }
 
 function loadSample() {
@@ -67,7 +71,7 @@ function loadSample() {
       {{ t('toolbar.redo') }}
     </button>
     <div class="sep" />
-    <button @click="store.addChild(store.doc.root.id, '新节点')">
+    <button @click="addChildToSelection">
       {{ t('toolbar.addChild') }}
     </button>
     <div class="sep" />

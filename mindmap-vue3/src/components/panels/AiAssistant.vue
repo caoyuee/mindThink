@@ -1,11 +1,16 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { onBeforeUnmount, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useMindmapStore } from '@/stores/mindmap';
 import { useConfigStore } from '@/stores/config';
 import { useToastStore } from '@/composables/useToast';
 import { createMcpContext } from '@/core/mcp';
-import { createAiChatRequest, normalizeAiEndpoint, readAiChatResponse } from '@/core/ai';
+import {
+  classifyAiRequestFailure,
+  createAiChatRequest,
+  normalizeAiEndpoint,
+  readAiChatResponse,
+} from '@/core/ai';
 
 const { t } = useI18n();
 const mindmap = useMindmapStore();
@@ -14,6 +19,14 @@ const toast = useToastStore();
 const prompt = ref(t('ai.defaultPrompt'));
 const answer = ref('');
 const loading = ref(false);
+const AI_TIMEOUT_MS = 30_000;
+let activeController: AbortController | null = null;
+
+function cancelRequest(): void {
+  activeController?.abort();
+}
+
+onBeforeUnmount(cancelRequest);
 
 async function ask(): Promise<void> {
   const endpoint = normalizeAiEndpoint(config.userConfig.aiEndpoint);
@@ -23,6 +36,13 @@ async function ask(): Promise<void> {
   }
   loading.value = true;
   answer.value = '';
+  const controller = new AbortController();
+  activeController = controller;
+  let timedOut = false;
+  const timeoutId = window.setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, AI_TIMEOUT_MS);
   try {
     const response = await fetch(`${endpoint}/chat/completions`, {
       method: 'POST',
@@ -35,12 +55,18 @@ async function ask(): Promise<void> {
       body: JSON.stringify(
         createAiChatRequest(config.userConfig.aiModel, prompt.value, createMcpContext(mindmap.doc)),
       ),
+      signal: controller.signal,
     });
     if (!response.ok) throw new Error(`AI HTTP ${response.status}`);
     answer.value = readAiChatResponse(await response.json());
   } catch (error) {
-    toast.error(`${t('toast.error')}: ${(error as Error).message}`);
+    const failure = classifyAiRequestFailure(error, timedOut);
+    if (failure === 'timeout') toast.warn(t('ai.timeout'));
+    else if (failure === 'cancelled') toast.info(t('ai.cancelled'));
+    else toast.error(`${t('toast.error')}: ${(error as Error).message}`);
   } finally {
+    window.clearTimeout(timeoutId);
+    if (activeController === controller) activeController = null;
     loading.value = false;
   }
 }
@@ -50,9 +76,14 @@ async function ask(): Promise<void> {
   <section class="assistant">
     <h3>{{ t('ai.title') }}</h3>
     <textarea v-model="prompt" rows="3" :placeholder="t('ai.prompt')" />
-    <button :disabled="loading" @click="void ask()">
-      {{ loading ? t('ai.loading') : t('ai.ask') }}
-    </button>
+    <div class="request-actions">
+      <button :disabled="loading" @click="void ask()">
+        {{ loading ? t('ai.loading') : t('ai.ask') }}
+      </button>
+      <button v-if="loading" class="secondary" @click="cancelRequest">
+        {{ t('ai.cancel') }}
+      </button>
+    </div>
     <pre v-if="answer" class="answer">{{ answer }}</pre>
     <button
       v-if="answer && mindmap.selectedId"
@@ -78,6 +109,11 @@ async function ask(): Promise<void> {
   margin: 0;
   font-size: 13px;
   color: var(--fg-mute);
+}
+.request-actions {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px;
 }
 .assistant textarea,
 .assistant button {

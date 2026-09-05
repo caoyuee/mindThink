@@ -13,6 +13,7 @@ import { useShortcuts } from '@/composables/useShortcuts';
 import NodeContextMenu from './NodeContextMenu.vue';
 import { exportPng, exportSvg } from '@/core/file';
 import { useToastStore } from '@/composables/useToast';
+import type { MarkmapRuntimeNode } from '@/types/markmap';
 
 const { t } = useI18n();
 const store = useMindmapStore();
@@ -22,7 +23,7 @@ const toast = useToastStore();
 
 const svgRef = ref<SVGSVGElement | null>(null);
 const menu = ref<{ x: number; y: number; targetId: string; isRoot: boolean } | null>(null);
-const selectedMarkmapNode = ref<unknown>(null);
+const selectedMarkmapNode = ref<MarkmapRuntimeNode | null>(null);
 
 /** markmap 实例。组件外闭包变量, 不进响应式 */
 let mm: InstanceType<typeof Markmap> | null = null;
@@ -53,9 +54,26 @@ async function render(): Promise<void> {
   ensureMarkmap();
   if (!mm) return;
   const opts = deriveOptions();
+  selectedMarkmapNode.value = null;
   await mm.setData(store.markmapData, opts);
   await nextTick();
   bindNodeEvents();
+  await syncSelectionHighlight();
+}
+
+async function syncSelectionHighlight(): Promise<void> {
+  if (!mm || !svgRef.value || !store.selectedId) {
+    selectedMarkmapNode.value = null;
+    if (mm) await mm.setHighlight(null);
+    return;
+  }
+  const element = Array.from(svgRef.value.querySelectorAll<SVGGElement>('g.markmap-node')).find(
+    (candidate) =>
+      (candidate as SVGGElement & { __data__?: MarkmapRuntimeNode }).__data__?.payload?.id ===
+      store.selectedId,
+  ) as (SVGGElement & { __data__?: MarkmapRuntimeNode }) | undefined;
+  selectedMarkmapNode.value = element?.__data__ ?? null;
+  await mm.setHighlight(selectedMarkmapNode.value as never);
 }
 
 /** 给 markmap 节点挂事件 */
@@ -75,18 +93,19 @@ function payloadOf(target: EventTarget | null): { id: string; isRoot: boolean } 
   if (!target) return null;
   const el = (target as Element).closest?.('g.markmap-node') as SVGGElement | null;
   if (!el) return null;
-  // markmap 在节点 g 上挂 __data__, 通过该对象读取我们注入的 payload
-  const data = (el as { __data__?: unknown }).__data__ as { data?: { payload?: { id: string } } };
-  const payload = data?.data?.payload as { id: string } | undefined;
-  if (!payload?.id) return null;
-  selectedMarkmapNode.value = data.data;
-  return { id: payload.id, isRoot: payload.id === store.doc.root.id };
+  // markmap 0.18 直接把运行时 INode 挂在 g.markmap-node.__data__ 上。
+  const node = (el as { __data__?: MarkmapRuntimeNode }).__data__;
+  const id = node?.payload?.id;
+  if (!node || !id) return null;
+  selectedMarkmapNode.value = node;
+  return { id, isRoot: id === store.doc.root.id };
 }
 
 function onSvgClick(e: MouseEvent): void {
   const p = payloadOf(e.target);
   if (!p) return;
   store.select(p.id);
+  if (mm && selectedMarkmapNode.value) void mm.setHighlight(selectedMarkmapNode.value as never);
   closeMenu();
 }
 
@@ -132,7 +151,11 @@ function serializedSvg(): string {
 }
 
 async function exportCurrentSvg(): Promise<void> {
-  const ok = await exportSvg(serializedSvg(), `${store.doc.root.text || 'mindmap'}.svg`);
+  const ok = await exportSvg(
+    serializedSvg(),
+    `${store.doc.root.text || 'mindmap'}.svg`,
+    t('dialog.exportSvg'),
+  );
   if (ok) toast.success(t('toast.exported'));
 }
 
@@ -161,7 +184,11 @@ async function exportCurrentPng(): Promise<void> {
         'image/png',
       ),
     );
-    const ok = await exportPng(png, `${store.doc.root.text || 'mindmap'}.png`);
+    const ok = await exportPng(
+      png,
+      `${store.doc.root.text || 'mindmap'}.png`,
+      t('dialog.exportPng'),
+    );
     if (ok) toast.success(t('toast.exported'));
   } finally {
     URL.revokeObjectURL(url);
@@ -176,10 +203,10 @@ async function toggleSelectedNode(): Promise<void> {
 function onMenuAction(action: string, id: string): void {
   switch (action) {
     case 'add-child':
-      store.addChild(id);
+      store.addChild(id, t('node.defaultName'));
       break;
     case 'add-sibling':
-      store.addSibling(id);
+      store.addSibling(id, t('node.defaultName'));
       break;
     case 'rename':
       promptRename(id);
@@ -203,6 +230,13 @@ watch(
     void render();
   },
   { deep: false },
+);
+
+watch(
+  () => store.selectedId,
+  () => {
+    void syncSelectionHighlight();
+  },
 );
 
 // 主题切换：重建 markmap（color 函数依赖 theme）

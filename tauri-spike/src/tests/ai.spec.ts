@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { createAiChatRequest, normalizeAiEndpoint, readAiChatResponse } from '@/core/ai';
+import {
+  classifyAiRequestFailure,
+  createAiChatRequest,
+  normalizeAiEndpoint,
+  readAiChatResponse,
+} from '@/core/ai';
 import { createNode } from '@/core/tree';
 import {
   createMcpContext,
@@ -82,6 +87,13 @@ describe('core/ai', () => {
     const request = createAiChatRequest('test-model', 'Organize this', context);
     expect(request.model).toBe('test-model');
     expect(request.messages[1]?.content).toContain('- Root');
+  });
+
+  it('classifies cancellation, timeout, and other failures', () => {
+    const abort = { name: 'AbortError' };
+    expect(classifyAiRequestFailure(abort, false)).toBe('cancelled');
+    expect(classifyAiRequestFailure(abort, true)).toBe('timeout');
+    expect(classifyAiRequestFailure(new Error('offline'), false)).toBe('error');
   });
 
   it('reads a standard chat completion response', () => {

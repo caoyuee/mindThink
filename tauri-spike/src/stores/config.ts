@@ -29,6 +29,13 @@ export interface UserConfig {
 }
 
 const CONFIG_KEY = 'user.config';
+export const RECENT_FILES_MIN = 1;
+export const RECENT_FILES_MAX = 20;
+
+export function normalizeRecentMaxNum(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 5;
+  return Math.min(RECENT_FILES_MAX, Math.max(RECENT_FILES_MIN, Math.round(value)));
+}
 
 const DEFAULT_CONFIG: UserConfig = {
   isAutoSave: true,
@@ -52,8 +59,7 @@ function loadConfig(): UserConfig {
         typeof parsed.isAutoSave === 'boolean' ? parsed.isAutoSave : DEFAULT_CONFIG.isAutoSave,
       defSavePath: typeof parsed.defSavePath === 'string' ? parsed.defSavePath : '',
       ifSaveLogToDisk: typeof parsed.ifSaveLogToDisk === 'boolean' ? parsed.ifSaveLogToDisk : false,
-      recentMaxNum:
-        typeof parsed.recentMaxNum === 'number' ? parsed.recentMaxNum : DEFAULT_CONFIG.recentMaxNum,
+      recentMaxNum: normalizeRecentMaxNum(parsed.recentMaxNum),
       aiEndpoint: typeof parsed.aiEndpoint === 'string' ? parsed.aiEndpoint : '',
       aiModel: typeof parsed.aiModel === 'string' ? parsed.aiModel : '',
       aiApiKey: typeof parsed.aiApiKey === 'string' ? parsed.aiApiKey : '',
@@ -83,7 +89,15 @@ export const useConfigStore = defineStore('config', () => {
   );
 
   function save(partial: Partial<UserConfig>): void {
-    userConfig.value = { ...userConfig.value, ...partial };
+    const recentMaxNum = normalizeRecentMaxNum(
+      partial.recentMaxNum ?? userConfig.value.recentMaxNum,
+    );
+    userConfig.value = {
+      ...userConfig.value,
+      ...partial,
+      recentMaxNum,
+      recentFiles: (partial.recentFiles ?? userConfig.value.recentFiles).slice(0, recentMaxNum),
+    };
   }
 
   function addRecentFile(path: string): void {

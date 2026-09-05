@@ -1,508 +1,543 @@
-# DesktopNaotu 现代化改造交接记录
+# DesktopNaotu 当前进度与交接
 
 更新时间：2026-09-05
 
-## 1. 项目目标
+## 1. 接手入口
 
-原项目来自：
+工作区：
 
-- https://github.com/NaoTu/DesktopNaotu
+```text
+C:\Users\chenc\Desktop\codework\newNaotu
+```
 
-原项目技术栈老旧：Electron 11、AngularJS 1.x、kityminder-editor、Gulp 3、Browserify、Bower、TypeScript 3.x。
+主要工程：
 
-当前计划是把它逐步改造成：
+- `mindmap-vue3/`：Web 版本，也是前端能力基线。
+- `tauri-spike/`：Tauri 2.x 桌面发布目标。
+- `legacy/`：旧 Electron/AngularJS/kityminder 项目，只作逻辑参考，不继续开发。
+- `mindThink.svg`：正式应用图标源文件。
 
-- Vue 3 + TypeScript 5
-- Vite
-- markmap
-- Tauri 2.x
-- Windows / macOS / Linux 跨平台
-- MCP 接口与内置 AI 对话功能
+接手后先阅读：
 
-用户最初提出的三个方向：
+- `mindmap-vue3/AGENTS.md`
+- `tauri-spike/AGENTS.md`
+- `tauri-spike/CONVENTIONS.md`
+- `tauri-spike/ARCHITECTURE.md`
 
-1. 更新所有依赖到较新版本。
-2. 用 Tauri 替代 Electron，并保持跨平台。
-3. 接入 AI，提供 MCP 接口或内置 AI 对话。
+两个目录都不是独立 Git 仓库；不要假定可使用 git 回滚。不要覆盖用户已有改动。
 
-## 2. 已确认的技术决策
+## 2. 架构红线
 
-### 前端
+- Vue 组件 -> Pinia store -> `core/` -> types。
+- 文档修改只能经过 `stores/mindmap.ts` actions 和 `applyEdit()`，保证撤销/重做。
+- `doc.value` 只能由 store 内 `_replaceDoc()` 直接替换。
+- markmap 集成只允许在 `components/editor/MindEditor.vue`。
+- markmap 类型只在 `src/types/markmap.d.ts` 收口。
+- 文件 IO 只通过 `src/core/file.ts`；Tauri 实现再路由到 `tauri-file.ts`。
+- WebView 禁止 Node API。
+- Tauri Rust command 原则上必须 async 并返回 `AppResult<T>`。
+- 四语言同步：`zh-CN`、`en`、`zh-TW`、`de`。
+- 用户可见错误用 Toast；不得静默 catch。
+- AI/MCP 写操作必须调用 store actions，不得绕过命令栈。
 
-- 使用 Vue 3，不继续使用 AngularJS。
-- 使用 TypeScript strict 模式。
-- 使用 Vite，不继续使用 Gulp 3、Browserify、Bower。
-- 使用 Pinia 管理状态。
-- 使用 vue-router 管理页面。
-- 使用 vue-i18n 管理多语言。
-- 当前支持语言：zh-CN、en、zh-TW、de。
+## 3. 已完成功能
 
-### 脑图内核
+### 文档与文件工作流
 
-已经比较过几种方案：
+Tauri 桌面端已经实现：
 
-- 保留 kityminder + Vue3 外壳：约 3-4 周，但受 AngularJS/SeaJS/kityminder 老架构限制。
-- jsMind + Vue3：约 3-4 周，开发量较小，但 AI/Markdown 适配一般。
-- markmap + Vue3：约 4-5 周，需要自行补充编辑能力，但 Markdown 与 AI 适配最好。
-- maxGraph：约 6-8 周，功能过重。
+- 当前文件路径 `documentPath`
+- dirty 状态 `isDirty`
+- 正常保存、另存为
+- 新建/打开/退出前未保存确认
+- 最近打开文件与清理
+- 每 30 秒自动保存与时间戳备份
+- Markdown 拖拽打开
+- `.md` / `.markdown` / `.km` 打开
+- `.km` 导入后清空源路径并标记 dirty，防止覆盖源 `.km`
+- SVG/PNG 导出
+- 中文路径和路径安全校验基础支持
 
-最终选择：**markmap + Vue3**。
+关键文件：
 
-选择原因：markmap 的 Markdown 数据模型更适合后续 AI 生成、总结、改写和 MCP 操作。
+- `tauri-spike/src/stores/mindmap.ts`
+- `tauri-spike/src/core/file.ts`
+- `tauri-spike/src/core/tauri-file.ts`
+- `tauri-spike/src/core/web-file.ts`
+- `tauri-spike/src/App.vue`
+- `tauri-spike/src-tauri/src/commands.rs`
 
-### 桌面壳
+### 脑图编辑
 
-- 使用 Tauri 2.x 替代 Electron。
-- Rust 作为桌面后端。
-- WebView 渲染层禁止 Node API。
-- 文件、对话框、系统窗口、外部链接等原生能力通过 Tauri command/plugin 调用。
+已经实现：
+
+- 节点增删、重命名
+- 子节点/兄弟节点
+- 缩进/反缩进
+- 快照式撤销/重做
+- 搜索与根到匹配节点路径
+- 递归大纲和选中同步
+- 节点备注
+- markmap 原生折叠/展开
+- `.km` 递归导入，保留文本、备注和 metadata
+
+### 多窗口与权限
+
+- 原生 `new-window` 菜单和动态 `editor-*` WebviewWindow。
+- `capabilities/default.json` 已加入 `core:window:allow-destroy`。
+- capability 覆盖 `main` 和 `editor-*`，修复关闭时报错：
+
+```text
+window.destroy not allowed
+```
+
+关闭权限修复已通过 Tauri debug build，但运行中的旧程序必须重启才能加载新 capability。
 
 ### AI
 
-计划同时支持：
+Web/Tauri 均有 OpenAI-compatible AI 助手：
 
-1. MCP Server：让 Claude Desktop、Cursor、Cline 等外部 Agent 读取和修改脑图。
-2. 内置 AI 对话面板：在应用内调用 OpenAI、Claude、DeepSeek、Qwen 等模型。
+- endpoint 只允许 `http:` / `https:`
+- model、API key 配置
+- 当前脑图 Markdown 上下文
+- AI 建议展示
+- 用户确认后写入当前节点备注
+- 写入使用 `updateNote()`，进入撤销栈
 
-AI 尚未正式开始实现。
+关键文件：
 
-## 3. 当前工作区结构
+- `*/src/core/ai.ts`
+- `*/src/components/panels/AiAssistant.vue`
+- `*/src/views/SettingsView.vue`
+- `*/src/stores/config.ts`
 
-当前工作区：
+API key 当前存于 localStorage/配置对象，尚未接 OS 凭据管理器。
 
-```text
-C:\Users\chenc\Desktop\codework\newNaotu
-```
+### MCP
 
-目录：
+TypeScript 协议层支持：
 
-```text
-newNaotu/
-├── README.md
-├── HANDOFF.md                         本交接记录
-├── legacy/                            原 DesktopNaotu-master 存档
-├── mindmap-vue3/                      Web 端
-└── tauri-spike/                       Tauri 桌面端
-```
+- `initialize`
+- `tools/list`
+- `resources/list`
+- `resources/read`
+- `tools/call`
+- `mindmap://current`
+- `mindmap://node/{id}`
+- JSON-RPC 错误 `-32600/-32601/-32602/-32700`
+- 单行 JSON 编解码，允许一个行尾换行并拒绝中间换行
 
-`legacy/` 是原项目存档，仅作参考，不应继续在里面开发。
+Rust 已实现：
 
-## 4. mindmap-vue3 当前状态
+- Tauri IPC command `mcp_rpc_request`
+- 独立 stdio Server：`desktop-naotu-mcp`
+- 独立 loopback HTTP Server：`desktop-naotu-mcp-http`
+- HTTP 默认 `127.0.0.1:8765/mcp`
+- HTTP 仅允许 `POST /mcp`，body 上限 1 MiB
+- stdio/HTTP 使用 `DESKTOP_NAOTU_MCP_CONTEXT` 启动时上下文快照
 
-目录：
+关键文件：
 
-```text
-newNaotu/mindmap-vue3/
-```
+- `tauri-spike/src/core/mcp.ts`
+- `tauri-spike/src-tauri/src/mcp.rs`
+- `tauri-spike/src-tauri/src/mcp_http.rs`
+- `tauri-spike/src-tauri/src/bin/desktop-naotu-mcp.rs`
+- `tauri-spike/src-tauri/src/bin/desktop-naotu-mcp-http.rs`
 
-这是 Web 端工程，已经从原始 spike 演化为正式工程骨架，包含：
+stdio 与 HTTP 均做过真实端到端请求验证。尚未与运行中的桌面文档实时同步。
 
-- Vue 3
-- TypeScript 5
-- Vite
-- Pinia
-- vue-router
-- vue-i18n
-- markmap
-- ESLint 9
-- Prettier 3
-- Vitest
-- 4 个语言文件
-- 主题持久化
-- Toast
-- 快捷键 composable
-- 全局错误处理
-- 单元测试
+### 应用图标
 
-主要目录：
-
-```text
-src/
-├── components/
-│   ├── common/
-│   ├── editor/
-│   ├── layout/
-│   └── panels/
-├── composables/
-├── core/
-├── i18n/
-├── router/
-├── stores/
-├── tests/
-├── types/
-└── views/
-```
-
-测试：
-
-- `src/tests/tree.spec.ts`
-- `src/tests/commands.spec.ts`
-- 当前共 21 个测试通过。
-
-已验证：
-
-```text
-typecheck: 0
-lint: 0
-format: 0
-test: 21 passed
-```
-
-## 5. tauri-spike 当前状态
-
-目录：
-
-```text
-newNaotu/tauri-spike/
-```
-
-这是 Tauri 2.x 桌面端工程，当前已经把 mindmap-vue3 的前端完整迁移进来。
-
-### 前端主要能力
-
-- Vue 3 + markmap 脑图编辑器
-- `/editor`、`/settings`、`/about` 路由
-- 4 语言 i18n
-- 主题切换
-- 节点增删、重命名、缩进、撤销/重做
-- Tauri/Web 平台自适应文件 IO
-- Toast 和全局错误处理
-
-### Rust 后端
-
-主要文件：
-
-```text
-src-tauri/
-├── Cargo.toml
-├── build.rs
-├── tauri.conf.json
-├── capabilities/default.json
-├── icons/
-└── src/
-    ├── main.rs
-    ├── lib.rs
-    └── commands.rs
-```
-
-已实现的 Tauri command：
-
-- `read_text_file(path)`
-- `write_text_file(path, content)`
-- `file_exists(path)`
-- `get_user_data_dir()`
-- `show_in_folder(path)`
-- `open_url(url)`
-- `exit_app()`
-- `get_app_version()`
-
-已配置 Tauri plugin：
-
-- dialog
-- fs
-- opener
-- shell
-
-已配置系统菜单：
-
-- Application
-- File
-- Edit
-- View
-- Help
-
-### 当前验证结果
-
-Tauri 前端：
-
-```text
-typecheck: 0
-lint: 0
-format: 0
-test: 21 passed
-```
-
-Rust：
-
-```text
-cargo check: 通过
-0 errors
-0 warnings
-```
-
-用户已经通过其他编辑器启动 Tauri，确认：
-
-```text
-Tauri 应用可以正常运行
-```
-
-因此 Tauri 壳、Rust command、前端集成路线已经基本验证可行。
-
-## 6. 关键修复记录
-
-### 6.1 pnpm 移动目录导致 node_modules 失效
-
-项目从旧路径移动到 `newNaotu` 后，pnpm 的符号链接/硬链接仍指向旧路径，导致依赖目录失效。
-
-处理方式：删除各工程的：
-
-- `node_modules/`
-- `pnpm-lock.yaml`
-- `pnpm-workspace.yaml`（旧残留）
-
-然后重新执行：
-
-```bash
-pnpm install
-```
-
-### 6.2 fromMarkdown 根节点 bug
-
-原来的 `fromMarkdown()` 无论 Markdown 第一行是什么，都会把根节点写成 `中心主题`。
-
-已经修复：
-
-- 第一个 0 缩进的 `- text` 作为根节点文本。
-- 没有合法根节点时才使用 `中心主题`。
-
-两个工程都已同步修复：
-
-- `mindmap-vue3/src/core/tree.ts`
-- `tauri-spike/src/core/tree.ts`
-
-### 6.3 icon.ico 格式错误
-
-最初把 PNG 文件直接改名为 `.ico`，Windows Resource Compiler 报错：
-
-```text
-RC2175: resource file icon.ico is not in 3.00 format
-```
-
-已经新增：
-
-```text
-tauri-spike/scripts/gen-icons.mjs
-```
-
-使用 `png-to-ico` 生成真正的多分辨率 ICO 文件，之后 `cargo check` 已通过。
-
-注意：当前 `icon.icns` 仍是临时 PNG 占位文件，正式发布前必须用真正的 ICNS 工具生成。
-
-### 6.4 Rust 编译问题
-
-已经修复：
-
-- `tokio` 依赖缺失。
-- `tauri::Manager` trait 未导入。
-- `tauri::Emitter` trait 未导入。
-- `show_in_folder` 错误地使用了不可用的内部 app handle。
-
-最终 `cargo check` 通过，0 warning、0 error。
-
-## 7. 运行命令
-
-### Web 端
+`mindThink.svg` 已通过官方命令生成并替换 `tauri-spike/src-tauri/icons/` 全套资源：
 
 ```powershell
-cd C:\Users\chenc\Desktop\codework\newNaotu\mindmap-vue3
-pnpm install
-pnpm dev
+pnpm exec tauri icon ..\mindThink.svg --output src-tauri\icons
 ```
 
-默认地址：
+已生成真实 ICO、ICNS、PNG、Windows Store、iOS 和 Android 图标。PNG 尺寸、ICO/ICNS 文件头和桌面构建均已验证。
+
+## 4. 最近一次关键修复：节点选择与撤销按钮
+
+用户报告：
+
+1. 无法选中节点并在选中节点后添加子节点。
+2. 添加子节点后撤销/重做按钮仍禁用。
+
+根因：
+
+- markmap 0.18 的 runtime node 直接位于 `g.markmap-node.__data__`；旧代码错误读取 `__data__.data.payload`，导致拿不到 id。
+- `CommandStack` 是普通 class，`computed(() => stack.canUndo())` 没有响应式依赖，第一次计算为 false 后一直缓存。
+- Toolbar 的子节点按钮写死使用根节点 id，没有使用 `selectedId`。
+
+已经在 Web/Tauri 两端同步修复：
+
+- 从 `__data__.payload.id` 读取节点 id。
+- 点击节点后 `store.select(id)` 并调用 `mm.setHighlight()`。
+- 每次重渲染后按 `selectedId` 重新定位 runtime node 并恢复高亮。
+- Toolbar 使用 `selectedId ?? root.id` 作为父节点。
+- `addChild()` 返回新节点 id，并自动选中新节点。
+- store 新增响应式 `historyRevision`；execute/undo/redo/clear 后递增，使 `canUndo/canRedo` 重新计算。
+- 缺失父节点时不创建命令历史。
+
+修改文件：
+
+- `tauri-spike/src/components/editor/MindEditor.vue`
+- `tauri-spike/src/components/panels/Toolbar.vue`
+- `tauri-spike/src/stores/mindmap.ts`
+- `tauri-spike/src/types/markmap.d.ts`
+- `mindmap-vue3/src/components/editor/MindEditor.vue`
+- `mindmap-vue3/src/components/panels/Toolbar.vue`
+- `mindmap-vue3/src/stores/mindmap.ts`
+- `mindmap-vue3/src/types/markmap.d.ts`
+
+新增测试：
+
+- `tauri-spike/src/tests/mindmap-store.spec.ts`
+- `mindmap-vue3/src/tests/mindmap-store.spec.ts`
+
+测试覆盖“选择父节点 -> 添加子节点 -> 自动选中新节点 -> undo -> redo”和无效父节点不入栈。
+
+重要：代码与自动测试已通过，但仍需要用户在新构建 GUI 中手工确认点击高亮、添加位置和按钮即时状态。
+
+## 5. 当前验证证据
+
+最近完整前端测试：
 
 ```text
-http://localhost:5180
+Tauri Vitest: 4 files, 35 tests passed
+Web Vitest:   6 files, 31 tests passed
 ```
 
-### Tauri 桌面端
+最近静态/构建验证：
+
+- 两端 `pnpm typecheck` 通过。
+- 两端 `pnpm lint` 通过。
+- 两端 `pnpm format:check` 通过。
+- 两端 `pnpm build` 通过。
+- Rust `cargo check` 通过。
+- Rust `cargo test`：5 passed。
+- `cargo clippy --all-targets -- -D warnings` 通过。
+- Windows MSI/NSIS 曾成功生成。
+- Tauri 多 binary 曾导致 installer 错选 MCP HTTP binary；已在 `Cargo.toml` 加：
+
+```toml
+default-run = "desktop-naotu"
+```
+
+重打包日志已确认主程序为 `desktop-naotu.exe`。
+
+产物：
+
+```text
+tauri-spike/src-tauri/target/release/desktop-naotu.exe
+tauri-spike/src-tauri/target/release/bundle/msi/DesktopNaotu_0.1.0_x64_en-US.msi
+tauri-spike/src-tauri/target/release/bundle/nsis/DesktopNaotu_0.1.0_x64-setup.exe
+```
+
+注意：上述 release installer 在最新“节点选择/撤销”和“关闭权限/新图标”修复前后可能存在时间差。正式交付前必须重新执行 `pnpm build:tauri`。
+
+## 6. 当前运行状态
+
+最后一次检查时有两个旧应用实例：
+
+```text
+PID 9192  target/release/desktop-naotu.exe
+PID 22076 target/debug/desktop-naotu.exe
+```
+
+不要假定 PID 仍有效，先用 `Get-Process` 检查。它们是旧构建，不能验证最新修复。
+
+默认 `target/debug/desktop-naotu.exe` 因运行中实例占用而无法覆盖，所以最新节点修复使用独立 target 构建验证：
+
+```text
+tauri-spike/src-tauri/target-verify/debug/desktop-naotu.exe
+```
+
+`target-verify` 最后一次 `cargo build --bin desktop-naotu` 成功。用户应关闭旧实例后运行该 executable 做 GUI 验收。
+
+## 7. 下一步必须做
+
+按优先级：
+
+### P0：GUI 实机回归
+
+运行最新构建，逐项检查：
+
+1. 点击任意 markmap 节点是否有明确高亮。
+2. 点击工具栏“子节点”是否添加到当前选中节点。
+3. 新节点是否自动成为选中节点。
+4. 添加后 Undo 是否立即启用。
+5. Undo 后 Redo 是否立即启用。
+6. 右键菜单的新增、重命名、删除、缩进是否作用于正确节点。
+7. 从大纲选择节点后 markmap 是否同步高亮。
+8. 关闭主窗口和 `editor-*` 子窗口是否不再报 destroy 权限错误。
+
+如果第 1 项仍失败，优先在实际 WebView DevTools 检查 `g.markmap-node.__data__`，不要再猜层级。markmap 0.18 类型表明它应是 runtime `INode`，payload 应在 `__data__.payload`。
+
+### P0：重新生成正式安装包
+
+关闭占用 `target/debug` / `target/release` 的旧实例后：
 
 ```powershell
 cd C:\Users\chenc\Desktop\codework\newNaotu\tauri-spike
-pnpm install
-pnpm run dev:tauri
+pnpm build:tauri
 ```
 
-Tauri 开发命令会：
+确认日志必须是：
 
-1. 启动 Vite，默认端口 `5181`。
-2. 编译 Rust。
-3. 打开 Tauri 窗口。
-4. 加载 WebView 前端。
+```text
+Built application at: ...\target\release\desktop-naotu.exe
+```
 
-打包：
+然后安装新 NSIS/MSI，验证新图标、关闭权限和节点交互。
+
+### P1：完整桌面验收
+
+- 新建、打开、保存、另存为、退出确认。
+- 中文/长路径、只读文件、源文件被删除。
+- 最近文件失效路径。
+- 自动保存、备份生成与恢复。
+- Markdown/KM 拖放。
+- `.km` 导入后只能另存 Markdown，不能覆盖源文件。
+- SVG/PNG 导出内容和尺寸。
+- 多窗口隔离、关闭和退出行为。
+- AI endpoint/CSP、错误、超时和取消。
+
+### P1：MCP 与桌面实时同步
+
+当前 MCP Server 只读取启动时 context 快照。需要设计安全的桌面实时桥接：
+
+- Server 获取当前窗口文档 context。
+- 外部 `tools/call` 写操作转发至对应窗口。
+- 所有写操作必须经过 store actions/命令栈。
+- HTTP 增加随机会话 token 或其它鉴权。
+- 明确多窗口时连接哪个文档。
+- 增加 Claude Desktop/Cursor/Cline 配置示例。
+
+### P1：发布工程
+
+尚未做：
+
+- Windows Authenticode 签名。
+- macOS Developer ID、hardened runtime、notarization。
+- Linux/macOS 实机打包和安装验证。
+- `tauri-plugin-updater`、更新签名公钥、manifest、失败回滚。
+- GitHub Actions 三平台 CI 和 artifact 发布。
+
+### P2：工程质量
+
+- Web/Tauri 前端目前手工同步，应抽取共享 package 或改为单一前端源。
+- 主 bundle 约 800 KiB，有 Vite chunk >500 KiB 警告；需要代码分割。
+- 自动备份尚未做保留策略和旧文件清理。
+- 原生 Rust 菜单仍是英文硬编码，需要本地化。
+- API key 应改用系统凭据管理器，不应长期明文存储。
+- 替换 `window.confirm/prompt` 为项目 dialogs 组件。
+- 增加 Tauri Driver/WebdriverIO 原生 E2E。
+
+## 8. 常用验证命令
+
+前端（两个工程分别执行）：
 
 ```powershell
-cd src-tauri
-cargo check
-cd ..
-pnpm run build:tauri
+pnpm typecheck
+pnpm lint
+pnpm format:check
+pnpm test
+pnpm build
 ```
 
-## 8. 当前已知问题和注意事项
+在 DSH 文件沙箱中，Vitest/Vite 可能因 esbuild 子进程 `spawn EPERM` 失败。已验证使用 `danger-full-access` 后可以运行；不要将该错误误判为断言失败。
 
-### 8.1 pnpm build script 提示
-
-pnpm 可能提示：
-
-```text
-ERR_PNPM_IGNORED_BUILDS
-Ignored build scripts: esbuild, vue-demi
-```
-
-这与 pnpm 的 build script 审批机制有关。当前前端 typecheck、lint、format、test 均已运行过，Tauri 也已经通过 cargo check。
-
-如果本地 Vite 无法启动，需要允许对应 build scripts，或使用当前机器的 pnpm 配置处理。
-
-### 8.2 Tauri dev 的路径缓存
-
-如果看到错误路径仍然指向旧目录：
-
-```text
-C:\Users\chenc\Desktop\codework\DesktopNaotu-master\...
-```
-
-应删除：
-
-```text
-tauri-spike/src-tauri/target/
-```
-
-然后重新运行：
+Rust：
 
 ```powershell
 cd tauri-spike/src-tauri
+cargo fmt -- --check
 cargo check
+cargo test
+cargo clippy --all-targets -- -D warnings
 ```
 
-### 8.3 图标
-
-`icon.ico` 已经是真正的 ICO。
-
-`icon.icns` 目前仍是临时占位文件，正式 macOS 打包前需要生成真实 ICNS。
-
-可用命令重新生成 Windows ICO：
+Tauri 无 bundle 调试构建：
 
 ```powershell
 cd tauri-spike
-node scripts/gen-icons.mjs
+pnpm exec tauri build --debug --no-bundle
 ```
 
-### 8.4 前端源码同步
+如果 executable 被运行中进程占用，可先确认进程来源，或使用独立 target：
 
-目前 `mindmap-vue3` 与 `tauri-spike` 的前端代码是手工复制关系，不是 workspace 或 symlink。
+```powershell
+$env:CARGO_TARGET_DIR='target-verify'
+cargo build --bin desktop-naotu
+```
 
-修改 Web 端后，如果要同步到桌面端，需要手动复制涉及的文件。
+`pnpm exec tauri info` 在当前 pnpm 11 环境可能因 Tauri CLI 版本解析 bug 自身 panic；这不是应用配置错误。
 
-建议下一阶段改为：
+## 9. 接手原则
 
-- pnpm workspace + 共享 packages，或
-- 抽取 `packages/app-core` / `packages/app-ui`，或
-- 让 Tauri 工程直接使用 Web 端 build 输出。
+- 先用最新 executable 做 GUI 验收，再继续增加功能。
+- 不要重复实现已经存在的 save/search/KM/AI/MCP。
+- 发现 Web/Tauri 前端差异时必须同步修复并分别测试。
+- 不要删除 `legacy/`，但也不要在其中开发。
+- 不要擅自终止用户正在使用的 release/debug 实例；先检查路径和 PID。
+- 正式发布前必须重建 installer，旧 MSI/NSIS 不包含所有最新修复。
 
-## 9. 下一步执行顺序
+## 10. 2026-09-05 简单功能盘点（本轮最新进度）
 
-用户已经确认 Tauri 可以通过其他编辑器正常启动。下一步建议按以下顺序：
+用户要求后续每项工作都持续归档。本轮只完成代码盘点，没有继续修改业务代码；上一轮节点选择/撤销修复仍是最新业务改动。
 
-### 第一步：确认桌面端实际功能
+### 推荐执行顺序
 
-在运行中的 Tauri 窗口中测试：
+#### S1：设置“最近文件数量”（最推荐，预计小改动）
 
-1. `/editor` 是否显示 markmap。
-2. 示例按钮是否可以加载脑图。
-3. 双击节点是否可以重命名。
-4. 右键菜单是否可用。
-5. 增删节点、缩进、撤销/重做是否正常。
-6. 保存 Markdown 是否弹出原生保存对话框。
-7. 打开 Markdown 是否弹出原生打开对话框。
-8. 设置页是否能切换主题和语言。
-9. File/Edit/View/Help 菜单事件是否正常。
-10. 关闭窗口时是否能正常退出。
+现状：
 
-### 第二步：修复真实运行中发现的问题
+- `stores/config.ts` 已有 `recentMaxNum`，默认值为 5。
+- `addRecentFile()` 已按该值截断列表。
+- 设置页没有修改该值的控件。
 
-重点关注：
+建议实现：
 
-- markmap 节点点击事件是否能正确拿到 `payload.id`。
-- Tauri dialog 返回值是否兼容当前 file API。
-- `capabilities/default.json` 权限是否足够但不过度开放。
-- 菜单文本是否需要国际化。
-- CSP 是否阻止 markmap 或 Vite HMR。
-- Windows 下真实保存路径和中文路径。
+- 在 `SettingsView.vue` 添加数字 input 或 stepper，限制合理范围（建议 1-20）。
+- `loadConfig()` 对持久化值做整数与范围校验，不能只判断 `typeof number`。
+- 降低上限后立即裁剪已有 `recentFiles`。
+- 四个 locale 同步增加标签。
+- 两端同步修改并增加 config store 测试。
 
-### 第三步：完成正式整合
+预计涉及：`stores/config.ts`、`views/SettingsView.vue`、四语言 JSON、测试。无需 Rust/Tauri command。
 
-- 去掉 tauri-spike 的临时命名，改为正式 desktop 工程。
-- 减少 Web 与 Tauri 前端的重复复制。
-- 抽取共享 core/store/component package。
-- 增加桌面端 E2E 测试。
-- 生成真实 Windows/macOS/Linux 图标。
-- 完成 `cargo build --release`。
-- 生成 Windows MSI、macOS DMG、Linux AppImage/DEB。
+#### S1 完成记录（2026-09-05）
 
-### 第四步：接入 AI/MCP
+“最近文件数量”已实现并验证：
 
-建议先做 MCP，再做内置聊天：
+- 两端 `stores/config.ts` 新增 `RECENT_FILES_MIN=1`、`RECENT_FILES_MAX=20` 和 `normalizeRecentMaxNum()`。
+- 加载持久化值和 `save()` 时统一规范为 1-20 的整数。
+- Tauri 端降低上限时会立即裁剪现有 `recentFiles`。
+- 两端 `SettingsView.vue` 已增加 number input，范围 1-20、step 1。
+- 四语言已增加 `settings.recentMaxNum` 与 `settings.recentMaxNumHint`。
+- 两端新增 `src/tests/config.spec.ts`。
+- 验证：Tauri `pnpm verify` 通过（38 tests）；Web `pnpm verify` 通过（34 tests）。
 
-MCP 初版工具：
+本项状态：**完成**。下一项为 S2。
 
-- `get_current_mindmap`
-- `get_node`
-- `add_node`
-- `update_node`
-- `delete_node`
-- `move_node`
-- `export_markdown`
-- `summarize_mindmap`
+#### S2：状态栏显示当前文件（小改动）
 
-MCP 初版资源：
+现状：Tauri store 已有 `documentPath`，状态栏只显示文档标题、节点数、dirty。
 
-- `mindmap://current`
-- `mindmap://node/{id}`
-- `mindmap://document/{path}`
+建议实现：
 
-所有 AI 修改必须复用现有 store actions 和命令栈，保证可撤销。
+- 桌面端状态栏显示当前文件名；hover title 显示完整路径。
+- 未保存文档显示本地化的“未命名”。
+- Web 端没有稳定路径，可只显示文档标题或保持现状；不要伪造路径。
 
-## 10. 新工作区接手要求
+预计涉及：Tauri `AppStatusBar.vue` 和四语言 JSON。无需改 core/store。
 
-新工作区启动后，首先：
+#### S2 完成记录（2026-09-05）
 
-1. 将工作目录设为：
+桌面状态栏当前文件显示已实现：
+
+- `tauri-spike/src/components/layout/AppStatusBar.vue` 显示当前 basename。
+- hover `title` 显示完整 `documentPath`。
+- 无路径时显示本地化“未命名文档”。
+- Tauri 四语言新增 `statusbar.currentFile` 与 `statusbar.untitledDocument`。
+- Web 端没有可靠路径，按设计未伪造文件信息。
+- 验证：Tauri `pnpm verify` 通过（38 tests）。
+
+本项状态：**完成**。下一项为 S3。
+
+#### S3：桌面窗口标题同步文档名和 dirty（小到中等）
+
+建议标题格式：
 
 ```text
-C:\Users\chenc\Desktop\codework\newNaotu
+* 文档名 · DesktopNaotu
 ```
 
-2. 阅读本文件：
+注意：
 
-```text
-HANDOFF.md
-```
+- dirty 时加 `*`，保存后移除。
+- 有路径时使用 basename，无路径时使用根节点文本或本地化“未命名”。
+- 动态 `editor-*` 窗口也要生效。
+- 使用 Tauri `getCurrentWindow().setTitle()` 前检查 capability 是否需要 `core:window:allow-set-title`。
+- 浏览器端仍使用 `document.title`。
 
-3. 阅读两个工程规则：
+预计涉及：`App.vue` 或专用 composable、capability、四语言和测试。
 
-```text
-mindmap-vue3/AGENTS.md
-tauri-spike/AGENTS.md
-```
+#### S3 完成记录（2026-09-05）
 
-4. 优先验证当前实际运行状态，不要重复创建 spike。
+桌面窗口标题与 dirty 标记已实现：
 
-5. 用户下一步最可能的请求是：
+- 新增纯函数 `tauri-spike/src/core/document-title.ts`。
+- 新增 `tauri-spike/src/tests/document-title.spec.ts`，覆盖 Windows/POSIX basename、未命名回退和 dirty 星号。
+- Tauri `App.vue` 监听 `documentPath`、根节点文本、`isDirty` 和语言；同步 `document.title` 与 native window title。
+- 标题格式为 `* 文件名 · DesktopNaotu`，保存后移除 `*`。
+- `main` 与 `editor-*` capability 新增 `core:window:allow-set-title`。
+- 验证：Tauri `pnpm verify` 通过（41 tests），`pnpm build` 通过，Rust `cargo check` 通过。
 
-```text
-修复 Tauri 实际运行中的问题，或继续完善桌面端功能。
-```
+本项状态：**完成**。仍需在新 GUI 构建中人工确认 Windows 标题栏显示。下一项为 S4。
 
-## 11. 当前结论
+#### S4：AI 请求超时与取消（小到中等）
 
-截至本记录：
+现状：`AiAssistant.vue` 直接 `fetch()`，没有 timeout/cancel；请求卡住时按钮持续 loading。
 
-- 依赖现代化方向已确定。
-- Vue3 + markmap 前端骨架已完成。
-- Tauri 2.x 桌面壳已完成。
-- Rust command 已通过 `cargo check`。
-- 前端两个工程均已通过 typecheck/lint/format/test。
-- 用户已用其他编辑器确认 Tauri 可以正常启动。
-- 当前重点已经从“验证 Tauri 能不能用”转为“测试桌面端真实功能并修复运行时问题”。
-- MCP/AI 尚未实现，是后续独立阶段。
+建议实现：
+
+- 每次请求创建 `AbortController`。
+- 增加 30-60 秒 timeout。
+- loading 时显示取消按钮。
+- 组件卸载时 abort。
+- 区分用户取消、超时和网络错误的 Toast。
+- 两端同步，四语言同步，补纯 helper 或组件测试。
+
+#### S4 完成记录（2026-09-05）
+
+AI 请求超时与取消已在 Web/Tauri 两端实现：
+
+- 30 秒后自动 abort，并显示本地化超时提示。
+- loading 时显示“取消请求”按钮。
+- 用户取消显示信息提示，不当作网络错误。
+- 组件卸载时自动 abort。
+- 每次请求在 `finally` 清理 timer/controller/loading。
+- `core/ai.ts` 新增 `classifyAiRequestFailure()`，区分 cancelled/timeout/error。
+- 四语言新增 `ai.cancel`、`ai.cancelled`、`ai.timeout`。
+- 两端 `ai.spec.ts` 增加错误分类测试。
+- 验证：Tauri `pnpm verify` 通过（42 tests）并生产构建通过；Web `pnpm verify` 通过（35 tests）并生产构建通过。
+
+本项状态：**完成**。仍需用真实慢响应 endpoint 人工检查按钮和 Toast。下一项为 S5。
+
+#### S5：清理用户可见硬编码文本（中等，适合拆批）
+
+已发现：
+
+- `stores/mindmap.ts` 默认节点文本 `'新节点'`。
+- `core/file.ts` 的“导出 SVG/PNG”“保存脑图”“打开脑图”。
+- `App.vue` 的“Tauri 启动信息获取失败”。
+- `SettingsView.vue` 的 Web 阶段 placeholder。
+
+建议先处理组件中的硬编码；文件对话框标题应通过调用参数传入本地化文案，不要让纯 core 直接依赖 vue-i18n。
+
+### 盘点中确认已完成，不要重复实现
+
+- 最近文件打开失败时自动移除：`stores/mindmap.ts::openRecent()` catch 已调用 `config.removeRecentFile(path)`。
+- 最近文件最大数量截断逻辑已存在，只缺 UI 与更严格校验。
+- 页面浏览器标题已有 router 基础逻辑，但还没有桌面文档标题/dirty 同步。
+
+### 暂不归类为简单功能
+
+以下事项会跨 Rust、权限或发布系统，不应在小额度下仓促开始：
+
+- 自动备份保留与清理：当前只有 `copy_file`，没有安全目录枚举/删除命令。
+- 自定义 confirm/prompt dialogs：会影响退出拦截、删除、重命名多个交互点，需要统一设计。
+- MCP 实时桌面同步与鉴权。
+- OS 凭据管理器保存 API key。
+- 自动更新、代码签名、三平台 CI。
+- Web/Tauri 共享 package 重构。
+
+### 下一位 AI 的最小可交付建议
+
+优先实现 S1“最近文件数量设置”。这是已有配置能力的 UI 闭环，风险最低、可单独验证。每完成一个功能后：
+
+1. 立即更新本节，标明修改文件和验证结果。
+2. Web/Tauri 两端同步时分别执行 `pnpm verify`。
+3. 不要等多个功能一起完成后才更新交接。

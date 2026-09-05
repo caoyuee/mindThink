@@ -15,6 +15,11 @@ const docSummary = computed(() =>
     n: mindmap.totalNodes,
   }),
 );
+const currentFile = computed(() => {
+  const path = mindmap.documentPath;
+  if (!path) return t('statusbar.untitledDocument');
+  return path.split(/[\\/]/).pop() || path;
+});
 </script>
 
 <template>
@@ -31,6 +36,9 @@ const docSummary = computed(() =>
       })
     }}</span>
     <span class="spacer">{{ docSummary }}</span>
+    <span :title="mindmap.documentPath ?? currentFile">
+      {{ t('statusbar.currentFile', { name: currentFile }) }}
+    </span>
     <span v-if="mindmap.isDirty" class="dirty">{{ t('statusbar.unsaved') }}</span>
   </div>
 </template>

@@ -1,7 +1,8 @@
 {
   "app": {
     "name": "桌面版腦圖",
-    "tagline": "本地優先、開源、AI 原生的腦圖工具"
+    "tagline": "本地優先、開源、AI 原生的腦圖工具",
+    "tauriStartupFailed": "Tauri 啟動資訊取得失敗"
   },
   "common": {
     "ok": "確定",
@@ -78,7 +79,8 @@
     "indent": "→ 右縮排",
     "outdent": "← 左縮排",
     "delete": "✕ 刪除節點",
-    "deleteConfirm": "確認刪除此節點及其所有子節點？"
+    "deleteConfirm": "確認刪除此節點及其所有子節點？",
+    "defaultName": "新節點"
   },
   "command": {
     "renameNode": "重新命名節點",
@@ -124,12 +126,21 @@
     "undo": "復原",
     "redo": "重做"
   },
+  "dialog": {
+    "exportSvg": "匯出 SVG",
+    "exportPng": "匯出 PNG",
+    "saveMindmap": "儲存腦圖",
+    "openMindmap": "開啟腦圖"
+  },
   "ai": {
     "title": "AI 助手",
     "prompt": "輸入問題或整理要求",
     "defaultPrompt": "請幫我完善這個腦圖的結構，並指出缺少的主題",
     "ask": "詢問 AI",
     "loading": "請求中…",
+    "cancel": "取消請求",
+    "cancelled": "AI 請求已取消",
+    "timeout": "AI 請求逾時，請稍後再試",
     "configureFirst": "請先在設定中配置 AI 介面與模型",
     "applyNote": "將建議寫入目前節點備註"
   },
@@ -141,10 +152,15 @@
     "dark": "暗色",
     "auto": "跟隨系統",
     "autoSave": "自動儲存",
+    "recentMaxNum": "最近檔案數量",
+    "recentMaxNumHint": "保留 {min} 到 {max} 個最近檔案",
     "savePath": "預設儲存路徑",
+    "savePathWeb": "（Web 階段無法使用）",
     "saveLogs": "儲存記錄檔到磁碟",
     "aiEndpoint": "AI 介面位址",
+    "aiEndpointPlaceholder": "https://api.example.com/v1",
     "aiModel": "AI 模型",
+    "aiModelPlaceholder": "model-name",
     "aiApiKey": "AI API 金鑰",
     "save": "儲存設定",
     "saved": "設定已儲存",
@@ -163,6 +179,8 @@
     "stackOk": "可",
     "stackEmpty": "—",
     "docSummary": "{title} · {n} 節點",
+    "currentFile": "檔案：{name}",
+    "untitledDocument": "未命名文件",
     "unsaved": "有未儲存修改"
   },
   "document": {

@@ -1,7 +1,8 @@
 {
   "app": {
     "name": "DesktopNaotu",
-    "tagline": "Local-first, open-source, AI-native mind mapping"
+    "tagline": "Local-first, open-source, AI-native mind mapping",
+    "tauriStartupFailed": "Failed to fetch Tauri startup info"
   },
   "common": {
     "ok": "OK",
@@ -124,12 +125,21 @@
     "undo": "Undo",
     "redo": "Redo"
   },
+  "dialog": {
+    "exportSvg": "Export SVG",
+    "exportPng": "Export PNG",
+    "saveMindmap": "Save mind map",
+    "openMindmap": "Open mind map"
+  },
   "ai": {
     "title": "AI assistant",
     "prompt": "Enter a question or organization request",
     "defaultPrompt": "Please improve this mindmap structure and point out missing topics",
     "ask": "Ask AI",
     "loading": "Requesting…",
+    "cancel": "Cancel request",
+    "cancelled": "AI request cancelled",
+    "timeout": "AI request timed out. Try again later",
     "configureFirst": "Configure an AI endpoint and model in Settings first",
     "applyNote": "Apply suggestion as current node note"
   },
@@ -141,10 +151,15 @@
     "dark": "Dark",
     "auto": "Auto",
     "autoSave": "Auto save",
+    "recentMaxNum": "Recent file count",
+    "recentMaxNumHint": "Keep between {min} and {max} recent files",
     "savePath": "Default save path",
+    "savePathWeb": "(Unavailable in web)",
     "saveLogs": "Save logs to disk",
     "aiEndpoint": "AI endpoint",
+    "aiEndpointPlaceholder": "https://api.example.com/v1",
     "aiModel": "AI model",
+    "aiModelPlaceholder": "model-name",
     "aiApiKey": "AI API key",
     "save": "Save settings",
     "saved": "Settings saved",
@@ -163,6 +178,8 @@
     "stackOk": "ready",
     "stackEmpty": "—",
     "docSummary": "{title} · {n} nodes",
+    "currentFile": "File: {name}",
+    "untitledDocument": "Untitled document",
     "unsaved": "Unsaved changes"
   },
   "document": {

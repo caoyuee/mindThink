@@ -10,6 +10,17 @@ export interface AiChatResponse {
   choices?: Array<{ message?: { content?: string } }>;
 }
 
+export type AiRequestFailure = 'cancelled' | 'timeout' | 'error';
+
+export function classifyAiRequestFailure(error: unknown, timedOut: boolean): AiRequestFailure {
+  const name =
+    typeof error === 'object' && error !== null && 'name' in error
+      ? String((error as { name: unknown }).name)
+      : '';
+  if (name !== 'AbortError') return 'error';
+  return timedOut ? 'timeout' : 'cancelled';
+}
+
 export function normalizeAiEndpoint(value: string): string | null {
   const trimmed = value.trim().replace(/\/$/, '');
   if (!trimmed) return null;

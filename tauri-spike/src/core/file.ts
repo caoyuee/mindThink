@@ -27,10 +27,14 @@ export async function saveFileAtPath(path: string, content: string): Promise<boo
 }
 
 /** 保存导出的 SVG 文本。 */
-export async function exportSvg(content: string, suggestedName: string): Promise<boolean> {
+export async function exportSvg(
+  content: string,
+  suggestedName: string,
+  title = 'Save SVG',
+): Promise<boolean> {
   if (isTauri()) {
     const path = await tauri.tauriSaveDialog({
-      title: '导出 SVG',
+      title,
       filters: [{ name: 'SVG', extensions: ['svg'] }],
       defaultPath: suggestedName,
     });
@@ -43,10 +47,14 @@ export async function exportSvg(content: string, suggestedName: string): Promise
 }
 
 /** 保存导出的 PNG 数据。 */
-export async function exportPng(data: Blob, suggestedName: string): Promise<boolean> {
+export async function exportPng(
+  data: Blob,
+  suggestedName: string,
+  title = 'Save PNG',
+): Promise<boolean> {
   if (isTauri()) {
     const path = await tauri.tauriSaveDialog({
-      title: '导出 PNG',
+      title,
       filters: [{ name: 'PNG', extensions: ['png'] }],
       defaultPath: suggestedName,
     });
@@ -73,10 +81,11 @@ export async function backupFile(path: string): Promise<boolean> {
 export async function saveFile(
   content: string,
   suggestedName = 'untitled.md',
+  title = 'Save Mind map',
 ): Promise<SaveResult> {
   if (isTauri()) {
     const path = await tauri.tauriSaveDialog({
-      title: '保存脑图',
+      title,
       filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }],
       defaultPath: suggestedName,
     });
@@ -96,10 +105,10 @@ export async function openFileAtPath(path: string): Promise<OpenResult> {
   return { name: path.split(/[\\/]/).pop() ?? path, content, path };
 }
 
-export async function openFile(): Promise<OpenResult | null> {
+export async function openFile(title = 'Open Mind map'): Promise<OpenResult | null> {
   if (isTauri()) {
     const path = await tauri.tauriOpenDialog({
-      title: '打开脑图',
+      title,
       filters: [{ name: 'Mind map', extensions: ['md', 'markdown', 'km'] }],
       multiple: false,
     });

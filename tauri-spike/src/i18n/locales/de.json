@@ -1,7 +1,8 @@
 {
   "app": {
     "name": "DesktopNaotu",
-    "tagline": "Lokal-first, Open-Source, KI-native Mindmaps"
+    "tagline": "Lokal-first, Open-Source, KI-native Mindmaps",
+    "tauriStartupFailed": "Tauri-Startinformationen konnten nicht geladen werden"
   },
   "common": {
     "ok": "OK",
@@ -78,7 +79,8 @@
     "indent": "→ Einrücken",
     "outdent": "← Ausrücken",
     "delete": "✕ Knoten löschen",
-    "deleteConfirm": "Diesen Knoten und alle untergeordneten Knoten löschen?"
+    "deleteConfirm": "Diesen Knoten und alle untergeordneten Knoten löschen?",
+    "defaultName": "Neuer Knoten"
   },
   "command": {
     "renameNode": "Knoten umbenennen",
@@ -124,12 +126,21 @@
     "undo": "Rückgängig",
     "redo": "Wiederherstellen"
   },
+  "dialog": {
+    "exportSvg": "SVG exportieren",
+    "exportPng": "PNG exportieren",
+    "saveMindmap": "Mindmap speichern",
+    "openMindmap": "Mindmap öffnen"
+  },
   "ai": {
     "title": "KI-Assistent",
     "prompt": "Frage oder Strukturierungswunsch eingeben",
     "defaultPrompt": "Bitte verbessere die Struktur dieser Mindmap und nenne fehlende Themen",
     "ask": "KI fragen",
     "loading": "Anfrage läuft…",
+    "cancel": "Anfrage abbrechen",
+    "cancelled": "KI-Anfrage abgebrochen",
+    "timeout": "Zeitüberschreitung der KI-Anfrage. Bitte später erneut versuchen",
     "configureFirst": "Zuerst KI-Endpunkt und Modell in den Einstellungen konfigurieren",
     "applyNote": "Vorschlag als Notiz des aktuellen Knotens anwenden"
   },
@@ -141,10 +152,15 @@
     "dark": "Dunkel",
     "auto": "Automatisch",
     "autoSave": "Automatisch speichern",
+    "recentMaxNum": "Anzahl zuletzt geöffneter Dateien",
+    "recentMaxNumHint": "Zwischen {min} und {max} Dateien behalten",
     "savePath": "Standard-Speicherpfad",
+    "savePathWeb": "(Im Web nicht verfügbar)",
     "saveLogs": "Protokolle auf Festplatte speichern",
     "aiEndpoint": "AI-Endpunkt",
+    "aiEndpointPlaceholder": "https://api.example.com/v1",
     "aiModel": "AI-Modell",
+    "aiModelPlaceholder": "model-name",
     "aiApiKey": "AI-API-Schlüssel",
     "save": "Einstellungen speichern",
     "saved": "Einstellungen gespeichert",
@@ -163,6 +179,8 @@
     "stackOk": "bereit",
     "stackEmpty": "—",
     "docSummary": "{title} · {n} Knoten",
+    "currentFile": "Datei: {name}",
+    "untitledDocument": "Unbenanntes Dokument",
     "unsaved": "Ungespeicherte Änderungen"
   },
   "document": {
