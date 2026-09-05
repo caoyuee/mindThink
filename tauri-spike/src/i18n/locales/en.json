@@ -141,7 +141,9 @@
     "cancelled": "AI request cancelled",
     "timeout": "AI request timed out. Try again later",
     "configureFirst": "Configure an AI endpoint and model in Settings first",
-    "applyNote": "Apply suggestion as current node note"
+    "applyNote": "Apply suggestion as current node note",
+    "expand": "Open AI assistant",
+    "collapse": "Close AI assistant"
   },
   "settings": {
     "title": "Settings",

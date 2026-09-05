@@ -4,6 +4,7 @@ import AppHeader from '@/components/layout/AppHeader.vue';
 import AppStatusBar from '@/components/layout/AppStatusBar.vue';
 import Toast from '@/components/common/Toast.vue';
 import { useUiStore } from '@/stores/ui';
+import AiAssistant from '@/components/panels/AiAssistant.vue';
 
 const ui = useUiStore();
 
@@ -20,6 +21,7 @@ onMounted(() => {
       <RouterView />
     </main>
     <AppStatusBar />
+    <AiAssistant />
     <Toast />
   </div>
 </template>

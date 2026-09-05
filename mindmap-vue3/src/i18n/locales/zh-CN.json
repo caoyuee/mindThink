@@ -134,7 +134,9 @@
     "cancelled": "AI 请求已取消",
     "timeout": "AI 请求超时，请稍后重试",
     "configureFirst": "请先在设置中配置 AI 接口和模型",
-    "applyNote": "将建议写入当前节点备注"
+    "applyNote": "将建议写入当前节点备注",
+    "expand": "展开 AI 助手",
+    "collapse": "折叠 AI 助手"
   },
   "settings": {
     "title": "设置",

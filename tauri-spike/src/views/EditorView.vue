@@ -6,7 +6,6 @@
 import Toolbar from '@/components/panels/Toolbar.vue';
 import MindEditor from '@/components/editor/MindEditor.vue';
 import Properties from '@/components/panels/Properties.vue';
-import AiAssistant from '@/components/panels/AiAssistant.vue';
 </script>
 
 <template>
@@ -15,7 +14,6 @@ import AiAssistant from '@/components/panels/AiAssistant.vue';
     <div class="workspace">
       <aside class="sidebar">
         <Properties />
-        <AiAssistant />
       </aside>
       <MindEditor />
     </div>
@@ -40,9 +38,6 @@ import AiAssistant from '@/components/panels/AiAssistant.vue';
   overflow: auto;
   background: var(--bg-elev);
   border-right: 1px solid var(--border);
-}
-.sidebar > :first-child {
-  min-height: 0;
 }
 .sidebar :deep(.aside) {
   border-right: 0;

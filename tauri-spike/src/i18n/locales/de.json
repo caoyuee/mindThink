@@ -142,7 +142,9 @@
     "cancelled": "KI-Anfrage abgebrochen",
     "timeout": "Zeitüberschreitung der KI-Anfrage. Bitte später erneut versuchen",
     "configureFirst": "Zuerst KI-Endpunkt und Modell in den Einstellungen konfigurieren",
-    "applyNote": "Vorschlag als Notiz des aktuellen Knotens anwenden"
+    "applyNote": "Vorschlag als Notiz des aktuellen Knotens anwenden",
+    "expand": "KI-Assistent öffnen",
+    "collapse": "KI-Assistent schließen"
   },
   "settings": {
     "title": "Einstellungen",

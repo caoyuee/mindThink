@@ -134,7 +134,9 @@
     "cancelled": "AI 請求已取消",
     "timeout": "AI 請求逾時，請稍後再試",
     "configureFirst": "請先在設定中配置 AI 介面與模型",
-    "applyNote": "將建議寫入目前節點備註"
+    "applyNote": "將建議寫入目前節點備註",
+    "expand": "展開 AI 助手",
+    "collapse": "收合 AI 助手"
   },
   "settings": {
     "title": "設定",
