@@ -621,6 +621,30 @@ Web 端修复 `exportSvg`/`exportPng` 多余的第三个参数（Web 版 `core/f
 - 描述中的快捷键包括了一些 markmap/kityminder 历史遗留（如 F2 插入父节点、Mod+B 加粗），当前 store 未实现，UI 仅展示。
 - 按 `command.addChild` 等键名可后续统一到 `useShortcuts` composable 的注册表，由一处定义后供 ShortcutsView 和快捷键注册复用。
 
+### 快捷键注册表统一 + 组件测试（2026-09-05 收尾）
+
+上节三项"未实现/已知差异"已全部补完：
+
+1. **抽出 `core/shortcuts.ts` shortcutRegistry**（两端）
+   - `SHORTCUT_REGISTRY`：每项含 `id`/`section`/`descKey`/`keys`/`status`
+   - `SHORTCUT_SECTIONS`：history / node / scope / layout 顺序
+   - `status: 'ready'`（已绑定）与 `'todo'`（仅展示、灰显 + 标注"待实现"）
+2. **ShortcutsView 改用 registry**：数据驱动渲染，不再本地硬编码；`todo` 项灰色 + `(待实现)` tag
+3. **useShortcuts 新增 `bindById` / `bindEntry`**：从 registry 展开键位组合绑定；MindEditor 改用 `bindById`
+4. **实现可低成本快捷键**
+   - `Mod+Enter` → markmap `fit()`（居中根节点）
+   - `Mod+F` → 聚焦左侧搜索框（新 composable `useSearchFocus.ts` + Properties 注册）
+   - `Alt+↑/↓` → 新增 store action `reorderNode(id, 'up'|'down')`
+   - 越界/根节点操作不入命令栈（修复 undo 状态污染）
+5. **安装 `@vue/test-utils` 2.5.0 + 补测试**
+   - `src/tests/shortcuts.spec.ts`：4 测试（4 分组、registry 行数一致、todo 标注、kbd 渲染）
+   - `mindmap-store.spec.ts` 新增 reorderNode 测试
+   - vitest.config.ts 需要 vue() plugin；`@vitejs/plugin-vue@^5` 与 vitest 2.x 内置 vite 5 冲突 → 配置 `plugins: [vue() as never]`
+6. **remaining todo 快捷键**（仍仅展示不绑定）：Enter 加兄弟 / F2 加父 / Space 折叠 / Mod+C/X/V 剪贴板 / Mod+B/I 加粗斜体 / 方向键导航 / Shift+Enter 换行 / Mod+0 布局 / Mod+A 全选
+7. 修复 intlify 测试警告（shortcuts.spec 测试 messages 补 `newline` key）
+
+**验证**：Tauri 48 tests、Web 40 tests 全通过，无 intlify 警告。提交 `f01a801 修复部分样式错位，新增快捷键页面`。
+
 ## 8. 常用验证命令
 
 前端（两个工程分别执行）：
