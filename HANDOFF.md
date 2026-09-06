@@ -662,6 +662,36 @@ Web 端修复 `exportSvg`/`exportPng` 多余的第三个参数（Web 版 `core/f
   - 4 tests：导入、round-trip 保层级与 meta、叶子省略 children、非法输入拒绝
 - 验证：Tauri 52 tests、Web 42 tests 全通过
 
+### 快捷键真正可用化（2026-09-05 用户确认"仅有页面无实际绑定"）
+
+原 SHORTCUT_REGISTRY 大量项为 `todo` 仅展示。现已把可低成本实现的全部补为可用（status: ready）：
+
+**新增 store actions（两端 `stores/mindmap.ts`）**
+
+- `addParent(id, text)`：把选中节点包进新父节点（F2 触发），返回新父 id
+- 内部剪贴板（非系统剪贴板，模块内 clone 缓存）：
+  - `copyNode(id)` / `cutNode(id)`（copy+remove）/ `pasteNode(parentId?)`
+  - paste 会**重贴整棵子树 id**（relabelSubtree），避免同文档重复 id 造成选中错乱
+- `moveSelection(dir)`：'parent'|'firstChild'|'prev'|'next' 方向键盘导航
+
+**useShortcuts 键归一化**
+
+- `normalizeKey()` 把展示符号 ↑/↓/←/→ 映射为 KeyboardEvent 的 ArrowUp 等；Space → ' '
+- `parseShortcut()` 返回前统一 normalize
+
+**MindEditor.bindById 现在绑定（全部实际生效）**
+
+- ready：undo / redo / indent / outdent / removeNode(Delete) / reorder(Alt+↑↓) / placeRoot(Mod+Enter→fit) / findNode(Mod+F→聚焦搜索) / **addSibling(Enter)** / **addParent(F2)** / **copy/cut/paste(Mod+C/X/V)** / **expandCollapse(Space→toggleNode)** / **navigate(↑↓←→)**
+
+**registry 状态**
+
+- todo 保留项：selectAll(Mod+A)、bold(Mod+B)、italic(Mod+I)、newline(Shift+Enter)、layoutInOrder(Mod+0)、dblClickSpace —— 需要富文本/多选/布局算法支持，未低成本实现
+
+**测试**
+
+- `mindmap-store.spec.ts`（两端）新增 3 项：addParent 包裹、copy/cut/paste（deep clone + 重贴 id）、moveSelection 导航
+- 验证：Tauri 55 tests、Web 45 tests 全通过
+
 ## 8. 常用验证命令
 
 前端（两个工程分别执行）：

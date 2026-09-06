@@ -259,6 +259,31 @@ onMounted(() => {
       void store.markmap?.fit?.();
     },
     findNode: () => focusSearchInput(),
+    addSibling: () => {
+      if (store.selectedId) store.addSibling(store.selectedId, t('node.defaultName'));
+    },
+    addParent: () => {
+      if (store.selectedId) store.addParent(store.selectedId, t('node.defaultName'));
+    },
+    copyNode: () => store.selectedId && store.copyNode(store.selectedId),
+    cutNode: () => store.selectedId && store.cutNode(store.selectedId),
+    pasteNode: () => store.pasteNode(),
+    expandCollapse: () => {
+      if (mm && selectedMarkmapNode.value)
+        void mm.toggleNode(selectedMarkmapNode.value as never, false);
+    },
+    navigate: (e) => {
+      if (!store.selectedId) return;
+      const dir =
+        e.key === 'ArrowUp'
+          ? 'prev'
+          : e.key === 'ArrowDown'
+            ? 'next'
+            : e.key === 'ArrowLeft'
+              ? 'parent'
+              : 'firstChild';
+      store.moveSelection(dir);
+    },
   });
 });
 

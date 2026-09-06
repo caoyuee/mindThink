@@ -58,4 +58,67 @@ describe('mindmap store selection and history', () => {
     store.reorderNode(store.doc.root.id, 'up');
     expect(store.canUndo).toBe(false);
   });
+
+  it('addParent wraps the selected node under a new parent', () => {
+    const store = useMindmapStore();
+    const child = store.addChild(store.doc.root.id, 'Child')!;
+    const wrapper = store.addParent(child, 'Group');
+    expect(wrapper).toBeTruthy();
+    expect(store.doc.root.children.map((n) => n.id)).toEqual([wrapper]);
+    expect(store.doc.root.children[0]?.children[0]?.id).toBe(child);
+    expect(store.selectedId).toBe(wrapper);
+    // 根不可包
+    expect(store.addParent(store.doc.root.id, 'x')).toBeNull();
+  });
+
+  it('copy/cut/paste node subtrees', () => {
+    const store = useMindmapStore();
+    const a = store.addChild(store.doc.root.id, 'A')!;
+    const a1 = store.addChild(a, 'A1')!;
+    const b = store.addChild(store.doc.root.id, 'B')!;
+
+    // copy A，粘贴到 B 下
+    expect(store.copyNode(a)).toBe(true);
+    store.select(b);
+    expect(store.pasteNode()).toBe(true);
+    const pastedId = store.selectedId!;
+    expect(store.doc.root.children[1]?.children[0]?.id).toBe(pastedId);
+    expect(store.doc.root.children[1]?.children[0]?.text).toBe('A');
+    expect(store.doc.root.children[1]?.children[0]?.children[0]?.id).not.toBe(a1); // deep clone
+    expect(store.doc.root.children[1]?.children[0]?.children[0]?.text).toBe('A1');
+
+    // cut B：B 及其已粘贴子节点被移除
+    const beforeCut = store.doc.root.children.length;
+    expect(store.cutNode(b)).toBe(true);
+    expect(store.doc.root.children.length).toBe(beforeCut - 1);
+    // 剪贴板里仍有 B 子树（含一个已粘贴的 A 副本子节点），粘贴到根应成功且重贴 id
+    store.select(store.doc.root.id);
+    expect(store.pasteNode()).toBe(true);
+    const relabeled = store.doc.root.children[store.doc.root.children.length - 1]!;
+    expect(relabeled.text).toBe('B');
+    expect(relabeled.id).not.toBe(b);
+    expect(relabeled.children[0]?.id).not.toBe(pastedId);
+  });
+
+  it('moveSelection navigates between parent/first-child/siblings', () => {
+    const store = useMindmapStore();
+    const first = store.addChild(store.doc.root.id, 'First')!;
+    const second = store.addChild(store.doc.root.id, 'Second')!;
+    store.select(first);
+
+    // next -> second
+    expect(store.moveSelection('next')).toBe(true);
+    expect(store.selectedId).toBe(second);
+    // prev -> first
+    expect(store.moveSelection('prev')).toBe(true);
+    expect(store.selectedId).toBe(first);
+    // parent -> root
+    expect(store.moveSelection('parent')).toBe(true);
+    expect(store.selectedId).toBe(store.doc.root.id);
+    // 在根按 parent 无操作
+    expect(store.moveSelection('parent')).toBe(false);
+    // firstChild -> first
+    expect(store.moveSelection('firstChild')).toBe(true);
+    expect(store.selectedId).toBe(first);
+  });
 });

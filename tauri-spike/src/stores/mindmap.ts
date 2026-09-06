@@ -241,6 +241,108 @@ export const useMindmapStore = defineStore('mindmap', () => {
     }, 'command.reorderNode');
   }
 
+  /**
+   * 为选中节点插入一个父节点（原父级的兄弟位置放新父级，选中节点移为新父级子节点）。
+   * 返回新父节点 id；根节点不可操作。失败返回 null。
+   */
+  function addParent(id: string, text: string): string | null {
+    if (id === doc.value.root.id) return null;
+    const parent = findParent(doc.value.root, id);
+    if (!parent) return null;
+    const parentId = parent.id;
+    const idx = parent.children.findIndex((c) => c.id === id);
+    if (idx < 0) return null;
+    const wrapper = createNode(text);
+    const wrapperId = wrapper.id;
+    applyEdit((d) => {
+      const p = findNode(d.root, parentId);
+      if (!p) return d;
+      const i = p.children.findIndex((c) => c.id === id);
+      if (i < 0) return d;
+      const moved = p.children.splice(i, 1)[0];
+      const w = findNode(d.root, wrapperId) ?? wrapper;
+      w.children = [moved];
+      p.children.splice(i, 0, w);
+      return d;
+    }, 'command.addParent');
+    selectedId.value = wrapperId;
+    return wrapperId;
+  }
+
+  // 模块级剪贴板缓存（cut 后原节点删除，这里保留 deep clone 以便 paste）
+  let clipboard: MindNode | null = null;
+
+  /** 复制节点子树到内部剪贴板（不依赖系统剪贴板，保证同文档语义）。 */
+  function copyNode(id: string): boolean {
+    const node = findNode(doc.value.root, id);
+    if (!node) return false;
+    clipboard = cloneTree(node);
+    return true;
+  }
+
+  /** 剪切：复制 + 删除原节点。 */
+  function cutNode(id: string): boolean {
+    if (id === doc.value.root.id) return false;
+    if (!copyNode(id)) return false;
+    removeNode(id);
+    return true;
+  }
+
+  /** 粘贴：把剪贴板节点作为当前选中节点的子节点插入，并选中新节点。 */
+  function pasteNode(parentId: string | null = null): boolean {
+    const target = parentId ?? selectedId.value;
+    if (!target || !clipboard) return false;
+    // 复制后重新生成整棵子树的 id，避免同一文档出现重复 id
+    const child = cloneTree(clipboard);
+    relabelSubtree(child);
+    const newId = child.id;
+    applyEdit((d) => {
+      const p = findNode(d.root, target);
+      if (!p) return d;
+      p.children.push(child);
+      return d;
+    }, 'command.pasteNode');
+    selectedId.value = newId;
+    return true;
+  }
+
+  /** 为节点及其子树生成全新 id（粘贴时避免重复）。 */
+  function relabelSubtree(node: MindNode): void {
+    node.id = newNodeId();
+    node.children.forEach(relabelSubtree);
+  }
+
+  /**
+   * 键盘方向导航：按当前选中节点上下文移动选区。
+   * dir: 'parent' 父节点 / 'firstChild' 首个子节点 / 'prev' 前一兄弟 / 'next' 后一兄弟。
+   */
+  function moveSelection(dir: 'parent' | 'firstChild' | 'prev' | 'next'): boolean {
+    const current = selectedId.value;
+    if (!current) return false;
+    if (dir === 'parent') {
+      if (current === doc.value.root.id) return false;
+      const parent = findParent(doc.value.root, current);
+      if (parent) selectedId.value = parent.id;
+      return !!parent;
+    }
+    if (dir === 'firstChild') {
+      const node = findNode(doc.value.root, current);
+      if (node && node.children.length) {
+        selectedId.value = node.children[0].id;
+        return true;
+      }
+      return false;
+    }
+    const parent = findParent(doc.value.root, current);
+    if (!parent) return false;
+    const idx = parent.children.findIndex((c) => c.id === current);
+    if (idx < 0) return false;
+    const target = dir === 'prev' ? idx - 1 : idx + 1;
+    if (target < 0 || target >= parent.children.length) return false;
+    selectedId.value = parent.children[target].id;
+    return true;
+  }
+
   //#endregion
 
   //#region 撤销/重做
@@ -424,10 +526,15 @@ export const useMindmapStore = defineStore('mindmap', () => {
     updateNote,
     addChild,
     addSibling,
+    addParent,
     removeNode,
     indentNode,
     outdentNode,
     reorderNode,
+    copyNode,
+    cutNode,
+    pasteNode,
+    moveSelection,
     undo,
     redo,
     save,

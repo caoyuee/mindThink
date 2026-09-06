@@ -24,7 +24,19 @@ export type ShortcutMap = Record<string, ShortcutHandler>;
 /** bindById 的 handler 字典：id -> handler。id 对应 ShortcutEntry.id。 */
 export type ShortcutHandlers = Record<string, ShortcutHandler>;
 
-/** 把 'ctrl+z' / 'mod+s' 标准化为内部表示 */
+/** 把展示用符号（↑/↓/←/→/Space）映射为 KeyboardEvent.key 的小写。 */
+function normalizeKey(key: string): string {
+  const symbolMap: Record<string, string> = {
+    '↑': 'arrowup',
+    '↓': 'arrowdown',
+    '←': 'arrowleft',
+    '→': 'arrowright',
+    space: ' ',
+  };
+  return symbolMap[key] ?? key;
+}
+
+/** 把 'ctrl+z' / 'mod+s' / '↑' 标准化为内部表示 */
 function parseShortcut(shortcut: string): { mod: number; key: string } {
   const parts = shortcut
     .toLowerCase()
@@ -40,7 +52,7 @@ function parseShortcut(shortcut: string): { mod: number; key: string } {
       mod |= navigator.platform.includes('Mac') ? 8 : 1;
     else key = p;
   }
-  return { mod, key };
+  return { mod, key: normalizeKey(key) };
 }
 
 function matchModifier(e: KeyboardEvent, mod: number): boolean {

@@ -52,4 +52,59 @@ describe('mindmap store selection and history', () => {
     expect(store.doc.root.children.length).toBe(3);
     expect(store.doc.root.children.map((n) => n.id)).toEqual([a, b, c]);
   });
+
+  it('addParent wraps the selected node under a new parent', () => {
+    const store = useMindmapStore();
+    const child = store.addChild(store.doc.root.id, 'Child')!;
+    const wrapper = store.addParent(child, 'Group');
+    expect(wrapper).toBeTruthy();
+    expect(store.doc.root.children.map((n) => n.id)).toEqual([wrapper]);
+    expect(store.doc.root.children[0]?.children[0]?.id).toBe(child);
+    expect(store.selectedId).toBe(wrapper);
+    expect(store.addParent(store.doc.root.id, 'x')).toBeNull();
+  });
+
+  it('copy/cut/paste node subtrees', () => {
+    const store = useMindmapStore();
+    const a = store.addChild(store.doc.root.id, 'A')!;
+    const a1 = store.addChild(a, 'A1')!;
+    const b = store.addChild(store.doc.root.id, 'B')!;
+
+    expect(store.copyNode(a)).toBe(true);
+    store.select(b);
+    expect(store.pasteNode()).toBe(true);
+    const pastedId = store.selectedId!;
+    expect(store.doc.root.children[1]?.children[0]?.id).toBe(pastedId);
+    expect(store.doc.root.children[1]?.children[0]?.text).toBe('A');
+    expect(store.doc.root.children[1]?.children[0]?.children[0]?.id).not.toBe(a1);
+    expect(store.doc.root.children[1]?.children[0]?.children[0]?.text).toBe('A1');
+
+    const beforeCut = store.doc.root.children.length;
+    expect(store.cutNode(b)).toBe(true);
+    expect(store.doc.root.children.length).toBe(beforeCut - 1);
+    // 剪贴板里仍有 B 子树（含一个已粘贴的 A 副本子节点），粘贴到根应成功且重贴 id
+    store.select(store.doc.root.id);
+    expect(store.pasteNode()).toBe(true);
+    const relabeled = store.doc.root.children[store.doc.root.children.length - 1]!;
+    expect(relabeled.text).toBe('B');
+    expect(relabeled.id).not.toBe(b);
+    expect(relabeled.children[0]?.id).not.toBe(pastedId);
+  });
+
+  it('moveSelection navigates between parent/first-child/siblings', () => {
+    const store = useMindmapStore();
+    const first = store.addChild(store.doc.root.id, 'First')!;
+    const second = store.addChild(store.doc.root.id, 'Second')!;
+    store.select(first);
+
+    expect(store.moveSelection('next')).toBe(true);
+    expect(store.selectedId).toBe(second);
+    expect(store.moveSelection('prev')).toBe(true);
+    expect(store.selectedId).toBe(first);
+    expect(store.moveSelection('parent')).toBe(true);
+    expect(store.selectedId).toBe(store.doc.root.id);
+    expect(store.moveSelection('parent')).toBe(false);
+    expect(store.moveSelection('firstChild')).toBe(true);
+    expect(store.selectedId).toBe(first);
+  });
 });
