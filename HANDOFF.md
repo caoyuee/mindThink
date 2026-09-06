@@ -1,6 +1,6 @@
 # DesktopNaotu 当前进度与交接
 
-更新时间：2026-09-05
+更新时间：2026-09-06
 
 ## 1. 接手入口
 
@@ -155,6 +155,54 @@ pnpm exec tauri icon ..\mindThink.svg --output src-tauri\icons
 ```
 
 已生成真实 ICO、ICNS、PNG、Windows Store、iOS 和 Android 图标。PNG 尺寸、ICO/ICNS 文件头和桌面构建均已验证。
+
+## 近期归档快照（2026-09-06）
+
+> 本条是"读完可直接接手"的最小快照。下面的 4/5/6/7… 等章节仍保留历史细节，
+> 但只有本条随时保持与最新代码一致。
+
+### 当前能力（除历史已列功能外，最近一轮新增）
+
+- **S1-S5 完整可用**（详见第 10 节历史）：
+  - 最近文件数量设置（1-20，降上限自动裁剪）
+  - 状态栏显示当前文件名 / 未命名文档
+  - 窗口标题同步文档名 + dirty（`* 文件 · App`）
+  - AI 请求 30s 超时、取消按钮、卸载中止
+  - 用户可见字符串清理（新节点/对话框/启动错误/placeholder 全部 i18n）
+- **AI 助手 = 全局浮动按钮 + 右侧抽屉**：右下角可拖动 FAB（Pointer Events，4px 拖动阈值），点击弹出 380px 抽屉；不再占侧栏空间（侧栏让给节点属性）。
+- **markmap 交互**：选中高亮（覆盖 markmap 默认几乎透明的 #ff02 → 亮/暗主题淡蓝底、无边框）；手型光标；单击选中。
+- **右键菜单**：根节点仅"添加子节点"，无孤立分隔线；"当前节点"面板按钮 flex 并排布局。
+- **快捷键体系（页面 + 真正可用）**：
+  - `/shortcuts` 路由页面由 `core/shortcuts.ts::SHORTCUT_REGISTRY` 数据驱动，todo 项灰显"待实现"。
+  - 全局 Mod+/ 跳转快捷键页；顶栏导航入口。
+  - `useShortcuts.bindById` 从 registry 统一绑定；键归一化支持 ↑/↓/←/→ 与 Space。
+  - **可用项**：撤销/重做、Tab 缩进、Delete 删除、Alt+↑↓ 同级移动、Enter 加兄弟、F2 加父、Space 折叠、方向键导航、Mod+C/X/V 节点剪贴板、Mod+F 聚焦搜索、Mod+Enter 居中。
+  - **todo（需富文本/多选/布局算法）**：Mod+A 全选、Mod+B/I 加粗斜体、Shift+Enter 换行、Mod+0 布局、双击空白。
+- **.km 原生导出**：`toKmJson()` round-trip 编码器（保留 meta 扩展字段、叶子省略 children）+ 导出按钮 + Tauri 保存对话框 / Web 下载；新增 round-trip 测试。
+- **测试基建**：两端接入 `@vue/test-utils` + vitest vue plugin（`vitest.config.ts` 用 `vue() as never` 兼容 vite 5/6 差异）。
+
+### 当前验证数字（最近 verify 全绿）
+
+```text
+Tauri 前端 Vitest: 55 passed（8 个测试文件）
+Web Vitest:        45 passed（8 个测试文件）
+```
+
+两端 `pnpm verify`（typecheck + lint + format:check + test）通过；
+Rust `cargo test` 5 passed、clippy -D warnings 通过（历史验证）。
+
+### 本会话提交历史（自快捷键说明页起）
+
+| commit | 内容 |
+|---|---|
+| `c46a6ef` | feat: 新增快捷键说明页与全局 Mod+/ 快捷键 |
+| `d48ceb0` | docs: 在 HANDOFF.md 记录快捷键说明页进度 |
+| `f01a801` | 修复部分样式错位，新增快捷键页面（含 registry、@vue/test-utils、reorderNode） |
+| `6882656` | docs: 记录快捷键 registry 统一与组件测试收尾 |
+| `2a84383` | feat: 支持导出 KityMinder .km 原生格式 |
+| `e020a75` | feat: 补齐真正可用的快捷键（F2/Enter/方向键/剪贴板/Space） |
+
+未提交变更：无（工作树 clean）。
 
 ## 4. 最近一次关键修复：节点选择与撤销按钮
 
@@ -741,9 +789,10 @@ cargo build --bin desktop-naotu
 - 不要擅自终止用户正在使用的 release/debug 实例；先检查路径和 PID。
 - 正式发布前必须重建 installer，旧 MSI/NSIS 不包含所有最新修复。
 
-## 10. 2026-09-05 简单功能盘点（本轮最新进度）
+## 10. 历次功能盘点与完成记录（S1-S5 已全部完成）
 
-用户要求后续每项工作都持续归档。本轮只完成代码盘点，没有继续修改业务代码；上一轮节点选择/撤销修复仍是最新业务改动。
+> 说明：以下 S1-S5 均已在 2026-09-05 实现并验证（每项下方有"完成记录"）。
+> 本节保留完整过程记录供回溯；当前代码状态请优先看文首"近期归档快照"。
 
 ### 推荐执行顺序
 
