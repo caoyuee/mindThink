@@ -1,4 +1,4 @@
-/** OpenAI-compatible chat request helpers shared with the desktop shell. */
+/** OpenAI-compatible chat request helpers. */
 import type { McpContext } from './mcp';
 
 export interface AiChatRequest {
@@ -21,12 +21,14 @@ export function classifyAiRequestFailure(error: unknown, timedOut: boolean): AiR
   return timedOut ? 'timeout' : 'cancelled';
 }
 
+/** Normalize and validate an OpenAI-compatible HTTP endpoint. */
 export function normalizeAiEndpoint(value: string): string | null {
   const trimmed = value.trim().replace(/\/$/, '');
   if (!trimmed) return null;
   try {
     const url = new URL(trimmed);
-    return url.protocol === 'http:' || url.protocol === 'https:' ? trimmed : null;
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
+    return trimmed;
   } catch {
     return null;
   }
@@ -45,13 +47,17 @@ export function createAiChatRequest(
         content:
           'You are a mindmap assistant. Suggest concise, actionable improvements. Do not claim to have edited the document.',
       },
-      { role: 'user', content: `${prompt}\n\nCurrent mindmap:\n${context.current.markdown}` },
+      {
+        role: 'user',
+        content: `${prompt}\n\nCurrent mindmap:\n${context.current.markdown}`,
+      },
     ],
   };
 }
 
 export function readAiChatResponse(value: unknown): string {
-  const content = (value as AiChatResponse).choices?.[0]?.message?.content;
+  const response = value as AiChatResponse;
+  const content = response.choices?.[0]?.message?.content;
   if (typeof content !== 'string' || !content.trim()) throw new Error('AI 返回内容为空');
   return content;
 }

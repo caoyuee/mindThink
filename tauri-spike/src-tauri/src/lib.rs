@@ -13,7 +13,8 @@ pub mod mcp_http;
 
 use commands::{
     copy_file, exit_app, file_exists, get_app_version, get_user_data_dir, mcp_rpc_request,
-    open_url, read_text_file, show_in_folder, write_binary_file, write_text_file,
+    open_url, read_text_file, rebuild_native_menu, show_in_folder, write_binary_file,
+    write_text_file,
 };
 use tauri::menu::{AboutMetadataBuilder, MenuBuilder, MenuItemBuilder, SubmenuBuilder};
 use tauri::Emitter;
@@ -49,6 +50,7 @@ pub fn run() {
             open_url,
             exit_app,
             get_app_version,
+            rebuild_native_menu,
             mcp_rpc_request,
         ])
         .run(tauri::generate_context!())

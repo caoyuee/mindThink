@@ -3,10 +3,12 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useMindmapStore } from '@/stores/mindmap';
 import { registerSearchInput } from '@/composables/useSearchFocus';
+import { useDialog } from '@/composables/useDialog';
 import OutlineTree from './OutlineTree.vue';
 
 const { t } = useI18n();
 const store = useMindmapStore();
+const dialog = useDialog();
 const searchQuery = ref('');
 const searchResults = computed(() => store.search(searchQuery.value));
 const searchInput = ref<HTMLInputElement | null>(null);
@@ -43,10 +45,16 @@ function addChild() {
   if (store.selectedId) store.addChild(store.selectedId, t('node.defaultName'));
 }
 
-function removeSelected() {
-  if (store.selectedId && store.selectedId !== store.doc.root.id) {
-    if (window.confirm(t('node.deleteConfirm'))) store.removeNode(store.selectedId);
-  }
+async function removeSelected(): Promise<void> {
+  if (!store.selectedId || store.selectedId === store.doc.root.id) return;
+  const ok = await dialog.confirm({
+    title: t('common.confirm'),
+    message: t('node.deleteConfirm'),
+    okText: t('common.ok'),
+    cancelText: t('common.cancel'),
+    danger: true,
+  });
+  if (ok) store.removeNode(store.selectedId);
 }
 </script>
 

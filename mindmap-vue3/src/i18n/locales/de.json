@@ -125,6 +125,9 @@
     "redo": "Wiederherstellen"
   },
   "dialog": {
+    "exportSvg": "SVG exportieren",
+    "exportPng": "PNG exportieren",
+    "exportKm": "KityMinder-Datei exportieren",
     "saveMindmap": "Mindmap",
     "openMindmap": "Mindmap"
   },

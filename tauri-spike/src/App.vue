@@ -19,10 +19,12 @@ import AppHeader from '@/components/layout/AppHeader.vue';
 import AppStatusBar from '@/components/layout/AppStatusBar.vue';
 import AiAssistant from '@/components/panels/AiAssistant.vue';
 import Toast from '@/components/common/Toast.vue';
+import DialogHost from '@/components/dialogs/DialogHost.vue';
 import { useUiStore } from '@/stores/ui';
 import { useMindmapStore } from '@/stores/mindmap';
 import { useConfigStore } from '@/stores/config';
 import { useToastStore } from '@/composables/useToast';
+import { useDialog } from '@/composables/useDialog';
 import { useI18n } from 'vue-i18n';
 import { detectPlatform } from '@/platform';
 import { fileApi } from '@/core/file';
@@ -34,11 +36,14 @@ import {
 } from '@/core/mcp';
 import { router } from '@/router';
 import { buildDocumentTitle } from '@/core/document-title';
+import { buildMenuSpec } from '@/core/menu-spec';
+import { tauriRebuildNativeMenu } from '@/core/tauri-file';
 import { logger } from '@/core/logger';
 
 const ui = useUiStore();
 const toast = useToastStore();
-const { t } = useI18n();
+const { t, locale } = useI18n();
+const dialog = useDialog();
 
 /**
  * Tauri 启动横幅(spike 阶段显示)
@@ -147,7 +152,12 @@ async function handleMcpRpcRequest(value: unknown): Promise<void> {
 
 async function confirmDiscard(mindmap: ReturnType<typeof useMindmapStore>): Promise<boolean> {
   if (!mindmap.isDirty) return true;
-  return window.confirm(t('document.discardChanges'));
+  return dialog.confirm({
+    title: t('common.confirm'),
+    message: t('document.discardChanges'),
+    okText: t('common.ok'),
+    cancelText: t('common.cancel'),
+  });
 }
 
 async function handleMenuEvent(id: string): Promise<void> {
@@ -203,6 +213,22 @@ async function handleMenuEvent(id: string): Promise<void> {
   }
 }
 
+/** 按当前 UI 语言重建系统原生菜单(桌面端)。失败 toast, 不阻塞 UI。 */
+function rebuildMenu(): void {
+  if (platform !== 'tauri') return;
+  const spec = buildMenuSpec((key) => t(key));
+  void tauriRebuildNativeMenu(spec).catch((error: unknown) => {
+    toast.warn(`${t('toast.error')}: ${(error as Error).message}`);
+  });
+}
+
+watch(
+  () => locale.value,
+  () => {
+    if (platform === 'tauri') rebuildMenu();
+  },
+);
+
 onMounted(async () => {
   // 初始化主题(同步 pinia store 也会做)
   document.documentElement.dataset['theme'] = ui.theme;
@@ -242,6 +268,8 @@ onMounted(async () => {
       });
       const version = await fileApi.getAppVersion();
       toast.info(`${t('app.name')} v${version} (Tauri)`, 5000);
+      // 覆盖 Rust 启动时的默认英文菜单, 让菜单跟随当前 UI 语言。
+      rebuildMenu();
     } catch (e) {
       toast.warn(`${t('app.tauriStartupFailed')}: ${(e as Error).message}`);
     }
@@ -295,6 +323,7 @@ onBeforeUnmount(() => {
     <AppStatusBar />
     <AiAssistant />
     <Toast />
+    <DialogHost />
   </div>
 </template>
 

@@ -2,6 +2,9 @@
 
 更新时间：2026-09-06
 
+> 📌 下一批功能实施计划见 `NEXT-PLAN.md`（规划产物：A 工程收口 / B 桌面原生打磨 /
+> C 能力增强三批任务的规格、执行顺序与验证要求）。本文件记录已完成与下一步必须做。
+
 ## 1. 接手入口
 
 工作区：
@@ -963,3 +966,221 @@ AI 请求超时与取消已在 Web/Tauri 两端实现：
 1. 立即更新本节，标明修改文件和验证结果。
 2. Web/Tauri 两端同步时分别执行 `pnpm verify`。
 3. 不要等多个功能一起完成后才更新交接。
+
+---
+
+## A1 完成记录（2026-09-06）
+
+两端源码一致性审计 + 防漂移护栏，已实现并验证。
+
+### 目标一句话
+
+把 6 处"事故漂移"的共享文件收敛到逐字节一致（Tauri 为功能更新、更全的一方，作为基准），
+把 7 处"合理差异"文件记录原因并排除在必须一致集合之外，再新增 parity 护栏脚本并接入两端 `verify`，
+防止后续同步改动再次双份返工/漏同步。
+
+### 修改文件清单
+
+**事故已收敛（Tauri → Web 复制，两端现已逐字节一致）**
+
+- `src/components/panels/OutlineTree.vue`：Tauri 新增 `:title` 节点提示。
+- `src/components/panels/Properties.vue`：样式细节 / `font:inherit` / 空行对齐。
+- `src/core/ai.ts`：注释与文档风格同步。
+- `src/core/km.ts`：Tauri 重构出的 `childrenOf` / `textOf` / `convertNode(value, isRoot)` + 根节点校验。
+- `src/core/mcp.ts`：Tauri 超集（`McpRequest` / `parseMcpRequest` / tools-call 与更丰富错误信息）。
+- `src/components/editor/MindEditor.vue`：导出调用传 `t('dialog.exportSvg/Png/Km')` 标题第 3 参。
+
+**Web 适配修补（让收敛后的 MindEditor 编译/引用一致，非行为漂移）**
+
+- `mindmap-vue3/src/core/file.ts`：`exportSvg/exportPng/exportKm` 增加忽略的第 3 参 `title`
+  （默认文案，`eslint-disable` 未用参），保持与 Tauri 签名一致。
+- `mindmap-vue3/src/i18n/locales/{zh-CN,en,zh-TW,de}.json`：补 `dialog.exportSvg/exportPng/exportKm`。
+
+**合理差异（已记录原因，parity 排除，不抹平）**
+
+- `App.vue`、`env.d.ts`、`core/file.ts`、`components/layout/AppStatusBar.vue`、
+  `components/panels/Toolbar.vue`、`stores/config.ts`、`stores/mindmap.ts`，
+  以及目录 `i18n/locales/`、`tests/`。逐条理由写在 `scripts/check-frontend-parity.mjs` 的
+  `EXCLUDED_PATHS` 注释里（桌面壳/菜单/MCP/autosave、`__TAURI__` 声明、file.ts 按设计
+  Web=FS Access 而 Tauri=路由壳、desktop 状态栏/最近文件 UI 与文档路径状态）。
+
+**护栏脚本与接线**
+
+- 新增 `scripts/check-frontend-parity.mjs`（Node 内置，Windows 路径安全，CRLF 归一化比较）。
+- 两端 `package.json`：新增 `parity` 脚本，`verify` 前置调用。
+
+### 验证结果（两端 test 数）
+
+- Web `mindmap-vue3` `pnpm verify` 通过：8 个测试文件 / **45 tests** 全绿。
+- Tauri `tauri-spike` `pnpm verify` 通过：8 个测试文件 / **55 tests** 全绿。
+- parity：收敛后返回 0（比较 29 个共享文件全部一致；允许差异 18 个）。
+- 护栏自测：故意改坏 Web `core/tree.ts` → parity 非零失败并列出该文件；还原后返回 0。
+- 注：vitest 在受限沙箱下因 esbuild spawn EPERM 需全权限运行，属运行环境限制与代码无关；
+  typecheck / lint / format:check 均绿。
+
+### 仍需人工确认
+
+- 本项纯同步，无行为改动；无需 GUI 逐项复核。可在后续最终 build 的 GUI 中抽查
+  导出 SVG/PNG/KM 对话框标题按当前语言正确显示即可。
+
+本项状态：**完成**。下一项 **A2**（用项目 dialogs 替换 `window.prompt/confirm`）。
+
+---
+
+## A2 完成记录（2026-09-06）
+
+用项目 Promise 式 dialogs 替换全部 `window.prompt/confirm`，兑现 AGENTS 红线 #7。
+
+### 目标一句话
+
+新增 `components/dialogs/`（Confirm/Prompt）+ 全局单例 `useDialog()`，由 App 根挂载
+`<DialogHost/>`，把散落在 App.vue / Properties.vue / MindEditor.vue 的原生弹窗全部改走
+Promise 式调用，并两端各补一套组件测试；`window.(prompt|confirm|alert)` 代码调用清零。
+
+### 修改文件清单（均为两端同步；App.vue 因平台差异仅各自改脚本，共享组件逐字节一致）
+
+- 新增（两端相同）：
+  - `src/components/dialogs/ConfirmDialog.vue`：标题/正文/确定/取消，`role="dialog"` +
+    `aria-modal`，Esc=取消、Enter=确认，danger 时自动聚焦"取消"（安全按钮），Teleport body，
+    简单 Tab 焦点圈闭 + 焦点回还。
+  - `src/components/dialogs/PromptDialog.vue`：确认 + 单行输入，初值回填并全选，
+    Enter 提交 / Esc 取消，Teleport body。
+  - `src/components/dialogs/DialogHost.vue`：订阅 useDialog 单例 request，按 kind 渲染
+    Confirm/Prompt 并把选择 settle 回 Promise；渲染错误经 `failDialog` 拒绝。
+  - `src/composables/useDialog.ts`：模块级单例 `confirm(): Promise<boolean>`、
+    `prompt(): Promise<string|null>`；payload 用 kind 判别便于 TS 收窄。
+- 接线：两端 `src/App.vue` 根模板加 `<DialogHost/>`。
+- 替换调用点：
+  - Tauri `App.vue` `confirmDiscard()`：`window.confirm` → `await dialog.confirm(...)`
+    （保留 onCloseRequested/菜单的异步拦截与 `isDirty` 短路语义）。
+  - 两端 `Properties.vue` `removeSelected()`：删除节点确认 → `dialog.confirm`（danger）。
+  - 两端 `MindEditor.vue`：右键重命名 `window.prompt` → `dialog.prompt`；右键删除
+    `window.confirm` → `dialog.confirm`（danger）。删除快捷键路径（无确认）保持不变。
+- 测试（两端）：`src/tests/dialog.spec.ts` 7 例——confirm 确定=true / 取消=false /
+  Esc=false；danger 文案与单例渲染唯一；prompt 提交=输入值（初值回填）、Enter 提交、
+  Esc=null。
+
+### 验证结果（两端 test 数）
+
+- Web `mindmap-vue3` `pnpm verify` 通过：9 个测试文件 / **52 tests**（原 45 + 新增 7）全绿。
+- Tauri `tauri-spike` `pnpm verify` 通过：9 个测试文件 / **62 tests**（原 55 + 新增 7）全绿。
+- parity：返回 0（新增 useDialog+3 个 dialogs 使共享比较升至 33 个文件，全部一致）。
+- grep `window.(prompt|confirm|alert)`：仅剩注释里的"替代 window.xxx"说明，代码调用为 0。
+
+### 仍需人工确认
+
+- 需在 GUI 中复核：右键重命名/删除弹窗、属性面板删除节点弹窗、桌面端退出/新建/打开
+  前的"丢弃修改"确认，均显示为自定义对话框且按当前语言文案正确；确认后默认焦点行为合理；
+  Esc/Enter 键操作符合预期。此点需用户在运行中的实例里人工点验，未在本次标为已完成。
+
+本项状态：**完成（代码与自动化测试）**，GUI 人工点验待用户进行。下一项 **A3**（Vite 代码分割）。
+
+---
+
+## A3 完成记录（2026-09-06）
+
+Vite 代码分割，消除 >500 KiB chunk 告警并改善首屏。
+
+### 目标一句话
+
+两端 `vite.config.ts` 增加 `manualChunks` 手动分桶（vue-vendor / markmap / markmap-md / d3 /
+vendor），配合已就位的路由动态 `import()`，把单入口大 bundle 拆成若干 <500 KiB 的稳定 chunk。
+Tauri 端沿用 `base './'`，懒加载 chunk 仍按相对路径产出。
+
+### 修改文件清单
+
+- `mindmap-vue3/vite.config.ts`：新增 `build.rollupOptions.output.manualChunks`。
+- `tauri-spike/vite.config.ts`：同上，并入既有 `build` 块；`base './'` 不变。
+- 路由懒加载无需改动：两端 `src/router/index.ts` 已一致，且 Editor/Settings/Shortcuts/
+  About/NotFound 全部用 `component: () => import(...)`（A1 parity 已验证逐字节一致）。
+
+### manualChunks 说明
+
+- pnpm 真实路径形如 `node_modules/.pnpm/<pkg>@x/node_modules/<pkg>`，故取**最后一个**
+  `/node_modules/` 后的包名，并先把 Windows 反斜杠归一为正斜杠，否则会把整段 .pnpm 误并进
+  一个 `vendor`（首次实现曾因此仍产出 840 KiB 单 chunk，已修正）。
+- 分桶：`vue-vendor`(vue/vue-router/pinia/vue-i18n/@vue)、`markmap`(markmap-*)、
+  `markmap-md`(katex/highlight.js/markdown-it*)、`d3`(d3 及 d3-*)、其余 `vendor`。
+  这四类里 markmap-lib 的 Markdown 管线与 markmap-view 的 d3 伞包较重，单独成桶后
+  单 chunk 均 <500 KiB。
+
+### 验证结果
+
+- 两端 `pnpm build` 通过，**无 "Some chunks are larger than 500 KiB" 告警**：
+  - Web 最大 chunk：markmap-md ~325 kB（另有 vue-vendor 122 / vendor 310 / markmap 28 / d3 52）。
+  - Tauri 最大 chunk：markmap-md ~325 kB、vendor ~329 kB（`base './'`）。
+- Tauri `dist/index.html` 使用 `./assets/...` 相对引用，并对各 vendor chunk 输出
+  `<link rel="modulepreload">`，懒加载路径正常。
+- 两端 `pnpm verify` 通过：Web 9 files / **52 tests**，Tauri 9 files / **62 tests**，parity 0。
+
+### 仍需人工确认
+
+- 需在新构建的 GUI 里复核：Web 与 Tauri 页面路由切换正常、刷新/直接进入 /settings、/about、
+  /shortcuts 不白屏（懒加载 chunk 相对路径正确）。Tauri 端改动需重新打包后才生效，本项未重打包。
+
+本项状态：**完成（代码与两端 build/verify 验证）**。GUI 路由点验与 Tauri 重打包待用户进行。
+下一项按批为 **B3**（桌面原生打磨批内的下一个任务，跨 Rust）。
+
+---
+
+## B1 完成记录（2026-09-06）
+
+原生菜单四语言本地化（动态重建）。已实现并经 cargo/两端 verify 验证；原生菜单即时切换
+行为需在 debug 构建中人工冒烟确认。
+
+### 目标一句话
+
+把 Rust 端硬编码英文的系统菜单改为由前端按当前 vue-i18n 语言生成的结构化 spec 动态重建，
+使切语言后原生 File/Edit/View/Help/app 菜单立即本地化；菜单项 id 与 `handleMenuEvent`
+一一对应保持，行为不变。
+
+### 修改文件清单
+
+- Rust：
+  - `tauri-spike/src-tauri/src/commands.rs`：新增 serde spec 结构（按 `kind` 区分子菜单/项/
+    分隔线/自定义项），新增 `rebuild_native_menu(app, spec) -> AppResult<()>`（async，
+    无 unwrap/expect），角色项（about/quit/undo/redo/cut/copy/paste/select_all/fullscreen）
+    用 Tauri `PredefinedMenuItem` 重建以保留 About 元数据与系统语义，自定义项用
+    `MenuItemBuilder::with_id(id,label)` + accelerator，成功即 `app.set_menu(...)`；
+    补 `impl From<tauri::Error> for AppError`；新增 2 个解析单测。
+  - `tauri-spike/src-tauri/src/lib.rs`：注册 `rebuild_native_menu`；默认 `build_menu` 与
+    `.on_menu_event`、Cargo 多 binary/default-run 均未改动。
+- 前端（Tauri 专用接线）：
+  - `tauri-spike/src/core/tauri-file.ts`：新增 `tauriRebuildNativeMenu(spec)` invoke 包装。
+  - `tauri-spike/src/App.vue`：`useI18n` 增加 `locale`；`rebuildMenu()` 仅 `platform==='tauri'`
+    时 `buildMenuSpec((k)=>t(k))` → invoke；失败 toast.warn 不静默不阻断；`onMounted` Tauri
+    块末尾调用一次覆盖默认英文 + `watch(locale)` 即时重建。Web `App.vue` 不调用。
+- 共享纯函数（两端逐字节一致，纳入 parity 对比）：
+  - `mindmap-vue3/src/core/menu-spec.ts` = `tauri-spike/src/core/menu-spec.ts`：纯 TS，
+    `MenuSpec/MenuItemSpec/MenuSubmenuSpec/MenuRole` 类型 + `MENU_LABEL_KEYS` + `buildMenuSpec(t)`
+    （t 为注入的字符串解析器，core 不依赖 vue-i18n）。结构与原英文菜单一致：app 菜单
+    (About/Quit)、File(New=Ctrl+N/Open=Ctrl+O/Open Recent/New Window/Save/分隔/Quit)、
+    Edit(undo/redo/…cut/copy/paste/select_all)、View(toggle-devtools=Ctrl+Shift+D/fullscreen)、
+    Help(About)。
+- i18n：`tauri-spike/src/i18n/locales/{zh-CN,en,zh-TW,de}.json` 在 `menu.*`/`common.*` 下补
+  new/open/newWindow/save/quit/about/undo/redo/cut/copy/paste/selectAll/toggleDevtools/
+  fullscreen 等四语言文案。Web locale 无原生菜单，未改。
+- 测试：`tauri-spike/src/tests/menu-spec.spec.ts`（结构/ids/accelerator + 用真实四语言 locale
+  断言 label 齐全，6 例）；`mindmap-vue3/src/tests/menu-spec.spec.ts`（纯结构，4 例）。
+
+### 验证结果
+
+- parity：`PARITY OK`（34 个共享文件比较一致，含新共享 `core/menu-spec.ts`）。
+- 两端 `pnpm verify`：Web **56 tests**（+4）、Tauri **68 tests**（+6）全绿，typecheck/lint/
+  format 干净。
+- Rust：`cargo fmt -- --check`、`cargo check`、`cargo test`（**7 passed**，原 5 + 新 2）干净；
+  `cargo clippy --all-targets -- -D warnings` 干净。
+
+### 仍需人工确认（须 debug 构建冒烟）
+
+- `pnpm dev:tauri` 后打开设置切换语言，确认原生菜单即时本地化、File 项（New/Open/Open
+  Recent/New Window/Save）仍触发 `menu_event` → 现有 `handleMenuEvent` 正常分发。
+- 平台差异点：macOS 会把首个 app 菜单当系统菜单并可能用 OS 本地化覆盖部分角色项标题；
+  Windows/Linux 会把该 app 菜单渲染成最左侧一个带应用名（已本地化）的菜单——与原硬编码
+  结构一致。部分角色项（undo/redo/fullscreen）在 Windows/Linux 标 "Unsupported"，同现状。
+- 本项未 `tauri build`/重打包 installer，未在运行中的实例里冒烟。
+
+本项状态：**完成（代码 + cargo + 两端 verify/clippy）**，原生菜单即时切换待 GUI 冒烟确认。
+
+
+

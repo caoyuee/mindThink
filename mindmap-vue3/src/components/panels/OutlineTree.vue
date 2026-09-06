@@ -3,8 +3,16 @@ import { useI18n } from 'vue-i18n';
 import type { MindNode } from '@/core/tree';
 
 defineOptions({ name: 'OutlineTree' });
-defineProps<{ nodes: MindNode[]; selectedId: string | null }>();
-const emit = defineEmits<{ select: [id: string] }>();
+
+defineProps<{
+  nodes: MindNode[];
+  selectedId: string | null;
+}>();
+
+const emit = defineEmits<{
+  select: [id: string];
+}>();
+
 const { t } = useI18n();
 </script>
 
@@ -13,6 +21,7 @@ const { t } = useI18n();
     <li v-for="node in nodes" :key="node.id">
       <button
         :class="['outline-node', { selected: node.id === selectedId }]"
+        :title="node.text"
         @click="emit('select', node.id)"
       >
         {{ node.text || t('panel.untitledNode') }}

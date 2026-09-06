@@ -57,18 +57,35 @@ function fsSaveOpts(description: string, suggestedName: string) {
   };
 }
 
-export async function exportSvg(content: string, suggestedName = 'mindmap.svg'): Promise<boolean> {
+/** Web 导出走 <a download>，无原生对话框标题，故忽略 title 参数以保持调用端一致。 */
+export async function exportSvg(
+  content: string,
+  suggestedName = 'mindmap.svg',
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  title = 'Save SVG',
+): Promise<boolean> {
   download(content, suggestedName, 'image/svg+xml;charset=utf-8');
   return true;
 }
 
-export async function exportPng(data: Blob, suggestedName = 'mindmap.png'): Promise<boolean> {
+/** Web 导出走 <a download>，无原生对话框标题，故忽略 title 参数以保持调用端一致。 */
+export async function exportPng(
+  data: Blob,
+  suggestedName = 'mindmap.png',
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  title = 'Save PNG',
+): Promise<boolean> {
   download(data, suggestedName, 'image/png');
   return true;
 }
 
 /** 保存导出的 KityMinder .km JSON 文本（兼容 legacy/百度脑图）。 */
-export async function exportKm(content: string, suggestedName = 'mindmap.km'): Promise<boolean> {
+export async function exportKm(
+  content: string,
+  suggestedName = 'mindmap.km',
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  title = 'Export KityMinder file',
+): Promise<boolean> {
   download(content, suggestedName, 'application/json');
   return true;
 }

@@ -14,6 +14,7 @@ import NodeContextMenu from './NodeContextMenu.vue';
 import { exportKm, exportPng, exportSvg } from '@/core/file';
 import { toKmJson } from '@/core/km';
 import { useToastStore } from '@/composables/useToast';
+import { useDialog } from '@/composables/useDialog';
 import { focusSearchInput } from '@/composables/useSearchFocus';
 import type { MarkmapRuntimeNode } from '@/types/markmap';
 
@@ -22,6 +23,7 @@ const store = useMindmapStore();
 const ui = useUiStore();
 const shortcuts = useShortcuts();
 const toast = useToastStore();
+const dialog = useDialog();
 
 const svgRef = ref<SVGSVGElement | null>(null);
 const menu = ref<{ x: number; y: number; targetId: string; isRoot: boolean } | null>(null);
@@ -128,10 +130,27 @@ function closeMenu(): void {
 
 function promptRename(id: string): void {
   const current = store.selectedNode?.text ?? '';
-  const next = window.prompt(t('node.rename'), current);
-  if (next !== null && next !== current) {
-    store.renameNode(id, next);
-  }
+  void dialog
+    .prompt({
+      title: t('node.rename'),
+      initialValue: current,
+      okText: t('common.ok'),
+      cancelText: t('common.cancel'),
+    })
+    .then((next) => {
+      if (next !== null && next !== current) store.renameNode(id, next);
+    });
+}
+
+async function confirmRemove(id: string): Promise<void> {
+  const ok = await dialog.confirm({
+    title: t('common.confirm'),
+    message: t('node.deleteConfirm'),
+    okText: t('common.ok'),
+    cancelText: t('common.cancel'),
+    danger: true,
+  });
+  if (ok) store.removeNode(id);
 }
 
 function serializedSvg(): string {
@@ -220,7 +239,7 @@ function onMenuAction(action: string, id: string): void {
       store.outdentNode(id);
       break;
     case 'remove':
-      if (window.confirm(t('node.deleteConfirm'))) store.removeNode(id);
+      void confirmRemove(id);
       break;
   }
 }

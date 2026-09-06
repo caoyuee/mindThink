@@ -55,7 +55,21 @@
     "goSettings": "Settings",
     "goShortcuts": "Shortcuts",
     "goAbout": "About",
-    "devtoolsUnavailable": "Developer tools are available in development builds"
+    "devtoolsUnavailable": "Developer tools are available in development builds",
+    "new": "New",
+    "open": "Open…",
+    "newWindow": "New Window",
+    "save": "Save",
+    "quit": "Quit",
+    "about": "About",
+    "undo": "Undo",
+    "redo": "Redo",
+    "cut": "Cut",
+    "copy": "Copy",
+    "paste": "Paste",
+    "selectAll": "Select All",
+    "toggleDevtools": "Toggle Developer Tools",
+    "fullscreen": "Toggle Full Screen"
   },
   "panel": {
     "properties": "Properties",

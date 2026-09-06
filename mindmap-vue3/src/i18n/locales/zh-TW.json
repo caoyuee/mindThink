@@ -125,6 +125,9 @@
     "redo": "重做"
   },
   "dialog": {
+    "exportSvg": "匯出 SVG",
+    "exportPng": "匯出 PNG",
+    "exportKm": "匯出 KityMinder 檔案",
     "saveMindmap": "Markdown 思維導圖",
     "openMindmap": "Markdown 思維導圖"
   },

@@ -55,7 +55,21 @@
     "goSettings": "Einstellungen",
     "goShortcuts": "Tastenkürzel",
     "goAbout": "Über",
-    "devtoolsUnavailable": "Die Entwicklertools sind in Entwicklungs-Builds verfügbar"
+    "devtoolsUnavailable": "Die Entwicklertools sind in Entwicklungs-Builds verfügbar",
+    "new": "Neu",
+    "open": "Öffnen…",
+    "newWindow": "Neues Fenster",
+    "save": "Speichern",
+    "quit": "Beenden",
+    "about": "Über",
+    "undo": "Rückgängig",
+    "redo": "Wiederherstellen",
+    "cut": "Ausschneiden",
+    "copy": "Kopieren",
+    "paste": "Einfügen",
+    "selectAll": "Alles auswählen",
+    "toggleDevtools": "Entwicklertools umschalten",
+    "fullscreen": "Vollbild umschalten"
   },
   "panel": {
     "properties": "Eigenschaften",

@@ -8,8 +8,9 @@
  * 4. 大文件读取未来可加 streaming, 当前 spike 阶段同步即可
  */
 use base64::Engine;
-use serde::{Serialize, Serializer};
+use serde::{Deserialize, Serialize, Serializer};
 use std::path::PathBuf;
+use tauri::menu::{AboutMetadataBuilder, Menu, MenuItemBuilder, PredefinedMenuItem, Submenu};
 use tauri::Manager;
 use thiserror::Error;
 
@@ -45,6 +46,12 @@ impl From<serde_json::Error> for AppError {
     }
 }
 
+impl From<tauri::Error> for AppError {
+    fn from(err: tauri::Error) -> Self {
+        AppError::Io(err.to_string())
+    }
+}
+
 /// 实现 Serialize, 前端 invoke 后可直接拿到结构化错误。
 impl Serialize for AppError {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -56,6 +63,125 @@ impl Serialize for AppError {
 }
 
 pub type AppResult<T> = Result<T, AppError>;
+
+/// Structured native menu spec (B1). The frontend builds this per-locale and
+/// sends it to [`rebuild_native_menu`] so the native menu follows the UI locale.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct MenuSpecJson {
+    submenus: Vec<SubmenuSpecJson>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SubmenuSpecJson {
+    label: String,
+    items: Vec<MenuItemSpecJson>,
+}
+
+/// One entry inside a submenu. `kind` discriminates custom / separator / role.
+#[derive(Debug, Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+enum MenuItemSpecJson {
+    Custom {
+        id: String,
+        label: String,
+        accelerator: Option<String>,
+    },
+    Separator,
+    Role {
+        role: MenuRoleJson,
+        label: String,
+    },
+}
+
+/// Native/predefined menu roles. Kept as roles so Tauri preserves the native
+/// semantics (About window metadata, OS-provided behavior) instead of them
+/// degrading to plain text items.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum MenuRoleJson {
+    About,
+    Quit,
+    Undo,
+    Redo,
+    Cut,
+    Copy,
+    Paste,
+    SelectAll,
+    Fullscreen,
+}
+
+fn role_to_predefined(
+    app: &tauri::AppHandle,
+    role: &MenuRoleJson,
+    label: &str,
+) -> tauri::Result<PredefinedMenuItem<tauri::Wry>> {
+    let text = Some(label);
+    match role {
+        MenuRoleJson::About => {
+            PredefinedMenuItem::about(app, text, Some(AboutMetadataBuilder::new().build()))
+        }
+        MenuRoleJson::Quit => PredefinedMenuItem::quit(app, text),
+        MenuRoleJson::Undo => PredefinedMenuItem::undo(app, text),
+        MenuRoleJson::Redo => PredefinedMenuItem::redo(app, text),
+        MenuRoleJson::Cut => PredefinedMenuItem::cut(app, text),
+        MenuRoleJson::Copy => PredefinedMenuItem::copy(app, text),
+        MenuRoleJson::Paste => PredefinedMenuItem::paste(app, text),
+        MenuRoleJson::SelectAll => PredefinedMenuItem::select_all(app, text),
+        MenuRoleJson::Fullscreen => PredefinedMenuItem::fullscreen(app, text),
+    }
+}
+
+fn append_spec_item(
+    app: &tauri::AppHandle,
+    submenu: &Submenu<tauri::Wry>,
+    item: &MenuItemSpecJson,
+) -> tauri::Result<()> {
+    match item {
+        MenuItemSpecJson::Separator => {
+            submenu.append(&PredefinedMenuItem::separator(app)?)?;
+        }
+        MenuItemSpecJson::Custom {
+            id,
+            label,
+            accelerator,
+        } => {
+            let mut builder = MenuItemBuilder::with_id(id.as_str(), label.as_str());
+            if let Some(acc) = accelerator {
+                builder = builder.accelerator(acc.as_str());
+            }
+            submenu.append(&builder.build(app)?)?;
+        }
+        MenuItemSpecJson::Role { role, label } => {
+            submenu.append(&role_to_predefined(app, role, label)?)?;
+        }
+    }
+    Ok(())
+}
+
+fn build_submenu_from_spec(
+    app: &tauri::AppHandle,
+    spec: &SubmenuSpecJson,
+) -> tauri::Result<Submenu<tauri::Wry>> {
+    let submenu = Submenu::new(app, &spec.label, true)?;
+    for item in &spec.items {
+        append_spec_item(app, &submenu, item)?;
+    }
+    Ok(submenu)
+}
+
+fn build_menu_from_spec(
+    app: &tauri::AppHandle,
+    spec: &MenuSpecJson,
+) -> tauri::Result<Menu<tauri::Wry>> {
+    let menu = Menu::new(app)?;
+    for submenu_spec in &spec.submenus {
+        let submenu = build_submenu_from_spec(app, submenu_spec)?;
+        menu.append(&submenu)?;
+    }
+    Ok(menu)
+}
 
 /// 校验路径格式并限制到用户可操作的目录。
 fn validate_path(app: &tauri::AppHandle, path: &str) -> AppResult<PathBuf> {
@@ -221,6 +347,20 @@ pub fn exit_app(app: tauri::AppHandle) {
 #[tauri::command]
 pub fn get_app_version(app: tauri::AppHandle) -> String {
     app.package_info().version.to_string()
+}
+
+/**
+ * 用前端按当前语言生成的结构化 spec 重建系统原生菜单。
+ *
+ * 前端在 mount 后调用一次以覆盖默认英文菜单，语言切换时再次调用，
+ * 使原生菜单即时跟随 UI locale。角色项(about/quit/undo/...)保留原生语义。
+ */
+#[tauri::command]
+pub async fn rebuild_native_menu(app: tauri::AppHandle, spec: serde_json::Value) -> AppResult<()> {
+    let spec: MenuSpecJson = serde_json::from_value(spec)?;
+    let menu = build_menu_from_spec(&app, &spec)?;
+    app.set_menu(menu)?;
+    Ok(())
 }
 
 /// 处理一个无副作用的 MCP JSON-RPC 请求。
@@ -407,5 +547,71 @@ mod tests {
         let invalid = handle_mcp_rpc(json!({ "jsonrpc": "1.0", "id": 5 }), context())
             .expect("invalid version should produce an RPC response");
         assert_eq!(invalid["error"]["code"], -32600);
+    }
+
+    #[test]
+    fn parses_native_menu_spec_json() {
+        let json = json!({
+            "submenus": [
+                { "label": "App", "items": [
+                    { "kind": "role", "role": "about", "label": "About" },
+                    { "kind": "separator" },
+                    { "kind": "role", "role": "quit", "label": "Quit" }
+                ]},
+                { "label": "File", "items": [
+                    { "kind": "custom", "id": "new", "label": "New", "accelerator": "CmdOrCtrl+N" },
+                    { "kind": "custom", "id": "open", "label": "Open…" },
+                    { "kind": "custom", "id": "save", "label": "Save", "accelerator": "CmdOrCtrl+S" }
+                ]},
+                { "label": "Edit", "items": [
+                    { "kind": "role", "role": "undo", "label": "Undo" },
+                    { "kind": "role", "role": "select_all", "label": "Select All" }
+                ]}
+            ]
+        });
+        let spec: super::MenuSpecJson = serde_json::from_value(json).expect("spec should parse");
+        assert_eq!(spec.submenus.len(), 3);
+
+        let file = &spec.submenus[1];
+        assert_eq!(file.label, "File");
+        assert_eq!(file.items.len(), 3);
+        match &file.items[0] {
+            super::MenuItemSpecJson::Custom {
+                id, accelerator, ..
+            } => {
+                assert_eq!(id, "new");
+                assert_eq!(accelerator.as_deref(), Some("CmdOrCtrl+N"));
+            }
+            other => panic!("expected a custom item, got {other:?}"),
+        }
+
+        // No accelerator is optional for custom items.
+        match &file.items[1] {
+            super::MenuItemSpecJson::Custom { accelerator, .. } => assert!(accelerator.is_none()),
+            other => panic!("expected a custom item, got {other:?}"),
+        }
+
+        // Roles preserve their enum + label.
+        match &spec.submenus[2].items[1] {
+            super::MenuItemSpecJson::Role { role, label } => {
+                assert!(matches!(role, super::MenuRoleJson::SelectAll));
+                assert_eq!(label, "Select All");
+            }
+            other => panic!("expected a role item, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn rejects_unknown_menu_role() {
+        let json = json!({
+            "submenus": [{
+                "label": "File",
+                "items": [
+                    { "kind": "role", "role": "definitely-not-a-role", "label": "?" }
+                ]
+            }]
+        });
+        let result = serde_json::from_value::<super::MenuSpecJson>(json);
+        assert!(result.is_err(), "unknown role should be rejected");
     }
 }

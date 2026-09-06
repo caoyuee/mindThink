@@ -55,7 +55,21 @@
     "goSettings": "設定",
     "goShortcuts": "快捷鍵",
     "goAbout": "關於",
-    "devtoolsUnavailable": "開發者工具請從除錯環境啟動"
+    "devtoolsUnavailable": "開發者工具請從除錯環境啟動",
+    "new": "新增",
+    "open": "開啟…",
+    "newWindow": "新增視窗",
+    "save": "儲存",
+    "quit": "結束",
+    "about": "關於",
+    "undo": "復原",
+    "redo": "重做",
+    "cut": "剪下",
+    "copy": "複製",
+    "paste": "貼上",
+    "selectAll": "全選",
+    "toggleDevtools": "切換開發者工具",
+    "fullscreen": "切換全螢幕"
   },
   "panel": {
     "properties": "屬性",

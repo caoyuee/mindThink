@@ -3,10 +3,12 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useMindmapStore } from '@/stores/mindmap';
 import { registerSearchInput } from '@/composables/useSearchFocus';
+import { useDialog } from '@/composables/useDialog';
 import OutlineTree from './OutlineTree.vue';
 
 const { t } = useI18n();
 const store = useMindmapStore();
+const dialog = useDialog();
 const searchQuery = ref('');
 const searchResults = computed(() => store.search(searchQuery.value));
 const searchInput = ref<HTMLInputElement | null>(null);
@@ -31,7 +33,8 @@ function setText(e: Event) {
 }
 
 function setNote(e: Event): void {
-  if (store.selectedId) store.updateNote(store.selectedId, (e.target as HTMLTextAreaElement).value);
+  const value = (e.target as HTMLTextAreaElement).value;
+  if (store.selectedId) store.updateNote(store.selectedId, value);
 }
 
 function renameRoot(e: Event) {
@@ -42,10 +45,16 @@ function addChild() {
   if (store.selectedId) store.addChild(store.selectedId, t('node.defaultName'));
 }
 
-function removeSelected() {
-  if (store.selectedId && store.selectedId !== store.doc.root.id) {
-    if (window.confirm(t('node.deleteConfirm'))) store.removeNode(store.selectedId);
-  }
+async function removeSelected(): Promise<void> {
+  if (!store.selectedId || store.selectedId === store.doc.root.id) return;
+  const ok = await dialog.confirm({
+    title: t('common.confirm'),
+    message: t('node.deleteConfirm'),
+    okText: t('common.ok'),
+    cancelText: t('common.cancel'),
+    danger: true,
+  });
+  if (ok) store.removeNode(store.selectedId);
 }
 </script>
 
@@ -104,6 +113,7 @@ function removeSelected() {
       </button>
       <small v-if="searchQuery && !searchResults.length">{{ t('panel.noResults') }}</small>
     </div>
+
     <h3 style="margin-top: 16px">{{ t('panel.outline') }}</h3>
     <div class="outline-panel">
       <OutlineTree
@@ -112,6 +122,7 @@ function removeSelected() {
         @select="store.select"
       />
     </div>
+
     <h3 style="margin-top: 16px">{{ t('panel.dataPreview') }}</h3>
     <pre
       style="
@@ -168,12 +179,33 @@ function removeSelected() {
   color: var(--fg);
   border: 1px solid var(--border);
   border-radius: 3px;
+  font: inherit;
 }
 .note-row {
   align-items: start;
 }
 .note-row textarea {
   resize: vertical;
+}
+.props button {
+  margin-top: 6px;
+  padding: 5px 8px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.props .actions {
+  display: flex;
+  gap: 8px;
+}
+.props .actions button {
+  flex: 1;
+  margin-top: 6px;
+}
+.props button.danger {
+  background: var(--danger);
 }
 .search-panel {
   display: grid;
@@ -205,25 +237,5 @@ function removeSelected() {
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 4px;
-}
-.props button {
-  margin-top: 6px;
-  padding: 5px 8px;
-  background: var(--accent);
-  color: var(--accent-fg);
-  border: none;
-  border-radius: 3px;
-  cursor: pointer;
-}
-.props .actions {
-  display: flex;
-  gap: 8px;
-}
-.props .actions button {
-  flex: 1;
-  margin-top: 6px;
-}
-.props button.danger {
-  background: var(--danger);
 }
 </style>

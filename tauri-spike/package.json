@@ -14,7 +14,8 @@
     "format:check": "prettier --check \"src/**/*.{ts,vue,css,json}\"",
     "format": "prettier --write \"src/**/*.{ts,vue,css,json}\" \"*.{ts,json,md}\"",
     "test": "vitest run",
-    "verify": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test"
+    "parity": "node ../scripts/check-frontend-parity.mjs",
+    "verify": "pnpm parity && pnpm typecheck && pnpm lint && pnpm format:check && pnpm test"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.1.1",

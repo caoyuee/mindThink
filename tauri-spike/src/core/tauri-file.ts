@@ -115,3 +115,9 @@ export async function tauriGetAppVersion(): Promise<string> {
   if (!isTauri()) return '0.0.0-web';
   return invoke<string>('get_app_version');
 }
+
+/** 用前端生成的结构化 spec 重建系统原生菜单(B1, 语言切换即时生效)。 */
+export async function tauriRebuildNativeMenu(spec: unknown): Promise<void> {
+  if (!isTauri()) throw new Error('tauriRebuildNativeMenu 只能在 Tauri 环境调用');
+  await invoke('rebuild_native_menu', { spec });
+}

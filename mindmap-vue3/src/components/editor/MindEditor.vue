@@ -14,6 +14,7 @@ import NodeContextMenu from './NodeContextMenu.vue';
 import { exportKm, exportPng, exportSvg } from '@/core/file';
 import { toKmJson } from '@/core/km';
 import { useToastStore } from '@/composables/useToast';
+import { useDialog } from '@/composables/useDialog';
 import { focusSearchInput } from '@/composables/useSearchFocus';
 import type { MarkmapRuntimeNode } from '@/types/markmap';
 
@@ -22,6 +23,7 @@ const store = useMindmapStore();
 const ui = useUiStore();
 const shortcuts = useShortcuts();
 const toast = useToastStore();
+const dialog = useDialog();
 
 const svgRef = ref<SVGSVGElement | null>(null);
 const menu = ref<{ x: number; y: number; targetId: string; isRoot: boolean } | null>(null);
@@ -93,6 +95,7 @@ function payloadOf(target: EventTarget | null): { id: string; isRoot: boolean } 
   if (!target) return null;
   const el = (target as Element).closest?.('g.markmap-node') as SVGGElement | null;
   if (!el) return null;
+  // markmap 0.18 直接把运行时 INode 挂在 g.markmap-node.__data__ 上。
   const node = (el as { __data__?: MarkmapRuntimeNode }).__data__;
   const id = node?.payload?.id;
   if (!node || !id) return null;
@@ -127,10 +130,27 @@ function closeMenu(): void {
 
 function promptRename(id: string): void {
   const current = store.selectedNode?.text ?? '';
-  const next = window.prompt(t('node.rename'), current);
-  if (next !== null && next !== current) {
-    store.renameNode(id, next);
-  }
+  void dialog
+    .prompt({
+      title: t('node.rename'),
+      initialValue: current,
+      okText: t('common.ok'),
+      cancelText: t('common.cancel'),
+    })
+    .then((next) => {
+      if (next !== null && next !== current) store.renameNode(id, next);
+    });
+}
+
+async function confirmRemove(id: string): Promise<void> {
+  const ok = await dialog.confirm({
+    title: t('common.confirm'),
+    message: t('node.deleteConfirm'),
+    okText: t('common.ok'),
+    cancelText: t('common.cancel'),
+    danger: true,
+  });
+  if (ok) store.removeNode(id);
 }
 
 function serializedSvg(): string {
@@ -143,7 +163,11 @@ function serializedSvg(): string {
 }
 
 async function exportCurrentSvg(): Promise<void> {
-  const ok = await exportSvg(serializedSvg(), `${store.doc.root.text || 'mindmap'}.svg`);
+  const ok = await exportSvg(
+    serializedSvg(),
+    `${store.doc.root.text || 'mindmap'}.svg`,
+    t('dialog.exportSvg'),
+  );
   if (ok) toast.success(t('toast.exported'));
 }
 
@@ -172,21 +196,29 @@ async function exportCurrentPng(): Promise<void> {
         'image/png',
       ),
     );
-    if (await exportPng(png, `${store.doc.root.text || 'mindmap'}.png`))
-      toast.success(t('toast.exported'));
+    const ok = await exportPng(
+      png,
+      `${store.doc.root.text || 'mindmap'}.png`,
+      t('dialog.exportPng'),
+    );
+    if (ok) toast.success(t('toast.exported'));
   } finally {
     URL.revokeObjectURL(url);
   }
 }
 
-async function exportCurrentKm(): Promise<void> {
-  const ok = await exportKm(toKmJson(store.doc.root), `${store.doc.root.text || 'mindmap'}.km`);
-  if (ok) toast.success(t('toast.exported'));
-}
-
 async function toggleSelectedNode(): Promise<void> {
   if (!mm || !selectedMarkmapNode.value) return;
   await mm.toggleNode(selectedMarkmapNode.value as never, false);
+}
+
+async function exportCurrentKm(): Promise<void> {
+  const ok = await exportKm(
+    toKmJson(store.doc.root),
+    `${store.doc.root.text || 'mindmap'}.km`,
+    t('dialog.exportKm'),
+  );
+  if (ok) toast.success(t('toast.exported'));
 }
 
 function onMenuAction(action: string, id: string): void {
@@ -207,7 +239,7 @@ function onMenuAction(action: string, id: string): void {
       store.outdentNode(id);
       break;
     case 'remove':
-      if (window.confirm(t('node.deleteConfirm'))) store.removeNode(id);
+      void confirmRemove(id);
       break;
   }
 }
@@ -256,6 +288,7 @@ onMounted(() => {
       store.reorderNode(store.selectedId, dir);
     },
     placeRoot: () => {
+      // 居中根节点：markmap.fit 会重置 zoom/pan 并把所有内容装入视口
       void store.markmap?.fit?.();
     },
     findNode: () => focusSearchInput(),

@@ -125,6 +125,9 @@
     "redo": "Redo"
   },
   "dialog": {
+    "exportSvg": "Export SVG",
+    "exportPng": "Export PNG",
+    "exportKm": "Export KityMinder file",
     "saveMindmap": "Mind map",
     "openMindmap": "Mind map"
   },
