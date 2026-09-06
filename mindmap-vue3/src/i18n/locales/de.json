@@ -90,6 +90,7 @@
   "shortcut": {
     "title": "Tastenkürzel",
     "hint": "Mod ist Cmd auf macOS und Ctrl auf Windows / Linux",
+    "todo": "Demnächst",
     "sectionNodeOp": "Knotenoperationen",
     "sectionScope": "Ansichtssteuerung",
     "sectionLayout": "Layout",

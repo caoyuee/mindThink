@@ -16,9 +16,13 @@
  */
 
 import { onBeforeUnmount, onMounted } from 'vue';
+import { SHORTCUT_REGISTRY, type ShortcutEntry } from '@/core/shortcuts';
 
 type ShortcutHandler = (e: KeyboardEvent) => void;
 export type ShortcutMap = Record<string, ShortcutHandler>;
+
+/** bindById 的 handler 字典：id -> handler。id 对应 ShortcutEntry.id。 */
+export type ShortcutHandlers = Record<string, ShortcutHandler>;
 
 /** 把 'ctrl+z' / 'mod+s' 标准化为内部表示 */
 function parseShortcut(shortcut: string): { mod: number; key: string } {
@@ -76,6 +80,31 @@ export function useShortcuts() {
     for (const [s, h] of Object.entries(map)) handlers.set(s, h);
   }
 
+  /**
+   * 用 SHORTCUT_REGISTRY 解析 handler 字典。
+   *
+   * 对于每个 entry.keys 中每个键位组合，绑定到 entry.id 对应的 handler。
+   * 未在 SHORTCUT_REGISTRY 出现的 id 会被忽略。
+   */
+  function bindById(map: ShortcutHandlers): void {
+    for (const entry of SHORTCUT_REGISTRY) {
+      const h = map[entry.id];
+      if (!h) continue;
+      for (const keys of entry.keys) {
+        if (keys.length === 0) continue;
+        handlers.set(keys.join('+'), h);
+      }
+    }
+  }
+
+  /** 把一个 ShortcutEntry 的所有键位绑定到同一 handler（用于动态注册）。 */
+  function bindEntry(entry: ShortcutEntry, h: ShortcutHandler): void {
+    for (const keys of entry.keys) {
+      if (keys.length === 0) continue;
+      handlers.set(keys.join('+'), h);
+    }
+  }
+
   function unbind(shortcut?: string): void {
     if (shortcut) handlers.delete(shortcut);
     else handlers.clear();
@@ -87,5 +116,5 @@ export function useShortcuts() {
     handlers.clear();
   });
 
-  return { bind, unbind };
+  return { bind, bindById, bindEntry, unbind };
 }

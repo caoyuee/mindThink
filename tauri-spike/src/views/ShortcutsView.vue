@@ -2,73 +2,28 @@
 /**
  * 快捷键帮助页
  *
- * 展示所有可用的快捷键，按使用场景分组。键位用 <kbd> 渲染，
- * 描述从 i18n 读。
+ * 数据完全来自 core/shortcuts.SHORTCUT_REGISTRY，与 useShortcuts.bindById
+ * 共用同一份数据源，避免"显示的"和"实际绑定的"漂移。
  */
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-
-interface ShortcutItem {
-  keys: string[];
-  descKey: string;
-}
-
-interface ShortcutGroup {
-  sectionKey: string;
-  items: ShortcutItem[];
-}
+import { SHORTCUT_REGISTRY, SHORTCUT_SECTIONS, type ShortcutSection } from '@/core/shortcuts';
 
 const { t } = useI18n();
 
-/** 各组按用户使用顺序排列；macOS 平台的 mod 在 useShortcuts 内部已映射为 Cmd */
-const groups: ShortcutGroup[] = [
-  {
-    sectionKey: 'shortcut.sectionHistory',
-    items: [
-      { keys: ['Mod', 'Z'], descKey: 'shortcut.undo' },
-      { keys: ['Mod', 'Shift', 'Z'], descKey: 'shortcut.redo' },
-      { keys: ['Mod', 'Y'], descKey: 'shortcut.redo' },
-    ],
-  },
-  {
-    sectionKey: 'shortcut.sectionNodeOp',
-    items: [
-      { keys: ['Tab'], descKey: 'shortcut.insertChild' },
-      { keys: ['Shift', 'Tab'], descKey: 'shortcut.outdent' },
-      { keys: ['Enter'], descKey: 'shortcut.insertSibling' },
-      { keys: ['F2'], descKey: 'shortcut.insertParent' },
-      { keys: ['Delete'], descKey: 'shortcut.removeNode' },
-      { keys: ['↑', '↓', '←', '→'], descKey: 'shortcut.navigate' },
-      { keys: ['Alt', '↑', '↓'], descKey: 'shortcut.reorder' },
-      { keys: ['Space'], descKey: 'shortcut.expandCollapse' },
-      { keys: ['Mod', 'Click'], descKey: 'shortcut.selectAll' },
-      { keys: ['Mod', 'C'], descKey: 'shortcut.copyNode' },
-      { keys: ['Mod', 'X'], descKey: 'shortcut.cutNode' },
-      { keys: ['Mod', 'V'], descKey: 'shortcut.pasteNode' },
-      { keys: ['Mod', 'F'], descKey: 'shortcut.findNode' },
-      { keys: ['Mod', 'B'], descKey: 'shortcut.bold' },
-      { keys: ['Mod', 'I'], descKey: 'shortcut.italic' },
-      { keys: ['Shift', 'Enter'], descKey: 'shortcut.newline' },
-    ],
-  },
-  {
-    sectionKey: 'shortcut.sectionScope',
-    items: [
-      { keys: ['Drag'], descKey: 'shortcut.drag' },
-      { keys: ['Right-Drag'], descKey: 'shortcut.dragRight' },
-      { keys: ['Wheel'], descKey: 'shortcut.mousewheel' },
-      { keys: ['Mod', 'Wheel'], descKey: 'shortcut.zoomScope' },
-      { keys: ['Touchpad'], descKey: 'shortcut.touchpad' },
-      { keys: ['Double-Click', 'Space'], descKey: 'shortcut.dblClickSpace' },
-    ],
-  },
-  {
-    sectionKey: 'shortcut.sectionLayout',
-    items: [
-      { keys: ['Mod', 'Enter'], descKey: 'shortcut.placeRoot' },
-      { keys: ['Mod', '0'], descKey: 'shortcut.layoutInOrder' },
-    ],
-  },
-];
+interface GroupViewModel {
+  key: ShortcutSection;
+  title: string;
+  items: typeof SHORTCUT_REGISTRY;
+}
+
+const groups = computed<GroupViewModel[]>(() =>
+  SHORTCUT_SECTIONS.map((section) => ({
+    key: section.key,
+    title: t(section.i18nKey),
+    items: SHORTCUT_REGISTRY.filter((e) => e.section === section.key),
+  })).filter((g) => g.items.length > 0),
+);
 </script>
 
 <template>
@@ -78,16 +33,40 @@ const groups: ShortcutGroup[] = [
       <p class="hint">{{ t('shortcut.hint') }}</p>
     </header>
 
-    <div v-for="group in groups" :key="group.sectionKey" class="group" data-testid="shortcut-group">
-      <h2>{{ t(group.sectionKey) }}</h2>
+    <div v-for="group in groups" :key="group.key" class="group" data-testid="shortcut-group">
+      <h2>{{ group.title }}</h2>
       <table>
         <tbody>
-          <tr v-for="item in group.items" :key="item.descKey">
-            <th scope="row">{{ t(item.descKey) }}</th>
+          <tr
+            v-for="item in group.items"
+            :key="item.id"
+            :data-status="item.status"
+            :data-shortcut-id="item.id"
+            class="shortcut-row"
+          >
+            <th scope="row">
+              {{ t(item.descKey) }}
+              <span v-if="item.status === 'todo'" class="todo-tag" data-testid="todo-tag">
+                {{ t('shortcut.todo') }}
+              </span>
+            </th>
             <td class="keys">
-              <template v-for="(k, i) in item.keys" :key="k + i">
-                <kbd>{{ k }}</kbd>
-                <span v-if="i < item.keys.length - 1" class="plus">+</span>
+              <template v-if="item.keys.length === 0">
+                <span class="muted">—</span>
+              </template>
+              <template v-else>
+                <span
+                  v-for="(combo, ci) in item.keys"
+                  :key="ci"
+                  class="combo"
+                  data-testid="shortcut-keys"
+                >
+                  <template v-for="(k, ki) in combo" :key="k + ki">
+                    <kbd>{{ k }}</kbd>
+                    <span v-if="ki < combo.length - 1" class="plus">+</span>
+                  </template>
+                  <span v-if="ci < item.keys.length - 1" class="or">/</span>
+                </span>
               </template>
             </td>
           </tr>
@@ -145,6 +124,35 @@ th {
   text-align: right;
   white-space: nowrap;
   padding: 6px 0;
+}
+.combo {
+  margin-left: 6px;
+}
+.combo:first-child {
+  margin-left: 0;
+}
+.or {
+  color: var(--fg-mute);
+  font-size: 11px;
+  margin: 0 4px;
+}
+.muted {
+  color: var(--fg-mute);
+}
+.todo-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  font-size: 10px;
+  color: var(--fg-mute);
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.shortcut-row[data-status='todo'] th {
+  color: var(--fg-mute);
 }
 kbd {
   display: inline-block;

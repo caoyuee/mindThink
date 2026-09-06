@@ -212,6 +212,27 @@ export const useMindmapStore = defineStore('mindmap', () => {
     }, 'command.outdentNode');
   }
 
+  function reorderNode(id: string, dir: 'up' | 'down'): void {
+    if (id === doc.value.root.id) return;
+    const parent = findParent(doc.value.root, id);
+    if (!parent) return;
+    const idx = parent.children.findIndex((c) => c.id === id);
+    if (idx < 0) return;
+    const target = dir === 'up' ? idx - 1 : idx + 1;
+    if (target < 0 || target >= parent.children.length) return;
+    applyEdit((d) => {
+      const p = findParent(d.root, id);
+      if (!p) return d;
+      const i = p.children.findIndex((c) => c.id === id);
+      if (i < 0) return d;
+      const t = dir === 'up' ? i - 1 : i + 1;
+      if (t < 0 || t >= p.children.length) return d;
+      const node = p.children.splice(i, 1)[0];
+      p.children.splice(t, 0, node);
+      return d;
+    }, 'command.reorderNode');
+  }
+
   //#endregion
 
   //#region 撤销/重做
@@ -352,6 +373,7 @@ export const useMindmapStore = defineStore('mindmap', () => {
     removeNode,
     indentNode,
     outdentNode,
+    reorderNode,
     undo,
     redo,
     saveAs,

@@ -1,13 +1,24 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useMindmapStore } from '@/stores/mindmap';
+import { registerSearchInput } from '@/composables/useSearchFocus';
 import OutlineTree from './OutlineTree.vue';
 
 const { t } = useI18n();
 const store = useMindmapStore();
 const searchQuery = ref('');
 const searchResults = computed(() => store.search(searchQuery.value));
+const searchInput = ref<HTMLInputElement | null>(null);
+
+watch(
+  searchInput,
+  (el) => {
+    registerSearchInput(el);
+  },
+  { immediate: true },
+);
+onBeforeUnmount(() => registerSearchInput(null));
 
 function selectSearchResult(path: ReturnType<typeof store.search>[number]): void {
   const node = path[path.length - 1];
@@ -83,7 +94,7 @@ function removeSelected() {
 
     <h3 style="margin-top: 16px">{{ t('panel.search') }}</h3>
     <div class="search-panel">
-      <input v-model="searchQuery" :placeholder="t('panel.searchPlaceholder')" />
+      <input ref="searchInput" v-model="searchQuery" :placeholder="t('panel.searchPlaceholder')" />
       <button
         v-for="path in searchResults"
         :key="path[path.length - 1]?.id"

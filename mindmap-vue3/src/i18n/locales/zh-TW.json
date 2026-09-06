@@ -90,6 +90,7 @@
   "shortcut": {
     "title": "快捷鍵",
     "hint": "macOS 上 Mod 即 Cmd；Windows / Linux 上 Mod 即 Ctrl",
+    "todo": "待實現",
     "sectionNodeOp": "節點操作",
     "sectionScope": "視野控制",
     "sectionLayout": "佈局",

@@ -33,4 +33,23 @@ describe('mindmap store selection and history', () => {
     expect(store.addChild('missing', 'Ignored')).toBeNull();
     expect(store.canUndo).toBe(false);
   });
+
+  it('reorders siblings up and down, and is undoable', () => {
+    const store = useMindmapStore();
+    const a = store.addChild(store.doc.root.id, 'A')!;
+    const b = store.addChild(store.doc.root.id, 'B')!;
+    const c = store.addChild(store.doc.root.id, 'C')!;
+    expect(store.doc.root.children.map((n) => n.id)).toEqual([a, b, c]);
+
+    store.reorderNode(b, 'up');
+    expect(store.doc.root.children.map((n) => n.id)).toEqual([b, a, c]);
+
+    store.reorderNode(b, 'down');
+    store.reorderNode(b, 'down');
+    expect(store.doc.root.children.map((n) => n.id)).toEqual([a, c, b]);
+
+    store.undo();
+    expect(store.doc.root.children.length).toBe(3);
+    expect(store.doc.root.children.map((n) => n.id)).toEqual([a, b, c]);
+  });
 });

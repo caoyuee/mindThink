@@ -95,6 +95,7 @@
   "shortcut": {
     "title": "Keyboard shortcuts",
     "hint": "Mod maps to Cmd on macOS, and Ctrl on Windows / Linux",
+    "todo": "Coming soon",
     "sectionNodeOp": "Node operations",
     "sectionScope": "View control",
     "sectionLayout": "Layout",

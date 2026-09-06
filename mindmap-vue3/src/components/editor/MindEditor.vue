@@ -13,6 +13,7 @@ import { useShortcuts } from '@/composables/useShortcuts';
 import NodeContextMenu from './NodeContextMenu.vue';
 import { exportPng, exportSvg } from '@/core/file';
 import { useToastStore } from '@/composables/useToast';
+import { focusSearchInput } from '@/composables/useSearchFocus';
 import type { MarkmapRuntimeNode } from '@/types/markmap';
 
 const { t } = useI18n();
@@ -236,11 +237,22 @@ watch(
 
 onMounted(() => {
   void render();
-  // 注册快捷键
-  shortcuts.bind({
-    'mod+z': () => store.undo(),
-    'mod+y': () => store.redo(),
-    'mod+shift+z': () => store.redo(),
+  // 注册快捷键：通过 SHORTCUT_REGISTRY 统一驱动，UI 显示和实际绑定同一份数据
+  shortcuts.bindById({
+    undo: () => store.undo(),
+    redo: () => store.redo(),
+    indent: () => store.selectedId && store.indentNode(store.selectedId),
+    outdent: () => store.selectedId && store.outdentNode(store.selectedId),
+    removeNode: () => store.selectedId && store.removeNode(store.selectedId),
+    reorder: (e) => {
+      if (!store.selectedId) return;
+      const dir = e.key === 'ArrowUp' ? 'up' : 'down';
+      store.reorderNode(store.selectedId, dir);
+    },
+    placeRoot: () => {
+      void store.markmap?.fit?.();
+    },
+    findNode: () => focusSearchInput(),
   });
 });
 
