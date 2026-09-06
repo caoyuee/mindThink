@@ -37,14 +37,14 @@ function act(action: string) {
     <button v-if="!isRoot" @click="act('rename')">
       {{ t('node.rename') }}
     </button>
-    <div class="sep" />
+    <div v-if="!isRoot" class="sep" />
     <button v-if="!isRoot" @click="act('indent')">
       {{ t('node.indent') }}
     </button>
     <button v-if="!isRoot" @click="act('outdent')">
       {{ t('node.outdent') }}
     </button>
-    <div class="sep" />
+    <div v-if="!isRoot" class="sep" />
     <button v-if="!isRoot" class="danger" style="color: var(--danger)" @click="act('remove')">
       {{ t('node.delete') }}
     </button>
