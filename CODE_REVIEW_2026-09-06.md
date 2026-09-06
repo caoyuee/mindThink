@@ -131,3 +131,83 @@ Tauri 缺：`reorderNode`、`addParent`、`pasteNode`。
 | P2-3 | P2 | ShortcutsView scope 分组占位（可选） | ☐ | ☐ | 两端 `core/shortcuts.ts` |
 
 > 注：P1-3 中 Web 端 `command.updateNote` 缺失为历史漂移，本批未引入，但属"当前代码不符合规范"项，建议顺手补齐。
+
+---
+
+## Round 2 审核记录（NEXT-PLAN 执行批 `4b68c22`，2026-09-06）
+
+> 由另一 AI 按 `NEXT-PLAN.md` 规划执行 A1–A3 + B1；本文档作者以代码审核师身份复审该提交并更新本文件。
+
+### R2.0 范围与门禁实测
+
+- 范围：commit `4b68c22`（A1 parity / A2 dialogs / A3 代码分割 / B1 菜单本地化），HANDOFF.md + NEXT-PLAN.md 同步归档。
+- 门禁（独立于开发者自报）：
+  - Web `pnpm verify`：parity `34 shared / 0 mismatch` → typecheck/lint/format → **56 tests** 全绿
+  - Tauri `pnpm verify`：同 parity → **68 tests** 全绿
+  - Rust `cargo fmt --check` / `cargo check` / `cargo test`（7 passed）/ `cargo clippy -D warnings` 全绿
+  - 两端 `pnpm build`：均无 >500 KiB 告警，最大 chunk 325 / 329 kB；Tauri `base './'` 未改
+- 结论：四道门禁全过，**可合并**（已在审核后合入 `main`）。
+
+### R2.1 红线与规范核查（实测）
+
+| 红线 / 规范 | 核查 | 结果 |
+|---|---|---|
+| 禁止 `window.(prompt|confirm|alert)(` | 全代码 grep 实证 | ✅ 0 命中（A2 目标达成） |
+| AGENTS #7（dialog 替代） | Components dialogs + useDialog + DialogHost 三件套 | ✅ |
+| 对话框文案 i18n | 所有调用点传 `t('common.ok/cancel/confirm')`、`node.rename/deleteConfirm` | ✅ |
+| 退出拦截时序保留 | `confirmDiscard` 在 `new` / `open` / `onCloseRequested` / `openRecent` 均被 `await`，`event.preventDefault()` 不变 | ✅ |
+| Rust 命令 `async` + `AppResult` | `rebuild_native_menu` 异步、无 unwrap/expect、未知 role 拒绝并有单测 | ✅ |
+| Rust 三件套（commands.rs / lib.rs / capabilities） | `commands.rs` 定义 + `lib.rs::generate_handler!` 注册；自定义 command 无需 capability 暴露 | ✅ |
+| `core/` 不依赖 Vue/Tauri | `menu-spec.ts` 注入 `(key)=>label`，`km.ts` 纯函数 | ✅ |
+| markmap 收口 | 无新增 Markmap 调用 | ✅ |
+| 跨模块改动需说明 | 已写入 NEXT-PLAN.md 与 HANDOFF.md 完成记录 | ✅ |
+| Web/Tauri 同步 | `parity` 脚本接入两端 `verify`；34 个共享文件逐字节一致；7 个合理差异已记录原因 | ✅ |
+| i18n 四语言 | 8 locale JSON 含 `common.*`、`dialog.*`（web 4 个）、`menu.*`（tauri 4 个）、`node.*` | ⚠️ 仅 `tauri-spike/en node.defaultName` 仍缺（§2.2 遗留） |
+| 构建告警 | 两端 `pnpm build` 无 >500 KiB 告警 | ✅ |
+
+### R2.2 本批新增的关注项（低风险，非阻塞）
+
+1. `ConfirmDialog` / `PromptDialog` 默认 `okText='OK'` / `cancelText='Cancel'` 为英文兜底；当前所有调用点都传了本地化文本，但建议未来把默认值改为必传或在组件内走 i18n，避免遗漏时显示英文。
+2. `useDialog` 单弹窗模型：并发 confirm 会让先开的 Promise 永不 settle（代码注释已声明接受）。低，可考虑队列化。
+3. `parity` 脚本对"只存在于单端的新文件"只 info 提示不失败（存在合法 Tauri-only 文件）。新共享文件漏建一端不会拦 verify；如需更严可在脚本加显式 allowlist。
+4. `core/file.ts`（Web）`exportSvg/exportPng/exportKm` 第三个 `title` 参数以 `eslint-disable` 注释忽略，与 Tauri 签名对齐但不消费——保持一致可接受，未来若 Web 改用 FS Access 提示可去掉。
+
+### R2.3 本批未触及、仍开放的旧项
+
+下一修复轮需处理（仍未分配批次）：
+
+- **P0-1** `useShortcuts` 修饰键匹配缺陷（4 组按键冲突）
+- **P1-1** `shortcut.outdent` / `shortcut.indent` 8 个 locale 缺失或误用
+- **P1-2** `tauri-spike/en` 缺 `node.defaultName`
+- **P1-3** `command.*`（reorderNode/addParent/pasteNode/updateNote）两端补齐
+- **P2-1** `removeNode` 根/不存在节点前置守卫
+- **P2-2** 死代码 `store.handleKey`
+- **P2-3** ShortcutsView scope 分组占位（可选）
+
+### R2.4 本批已修复（关闭旧登记项）
+
+| 编号 | 修复方式 | 验证 |
+|---|---|---|
+| P1-4 | Web `core/km.ts` 收敛到 Tauri 规范版（`textOf` / `childrenOf` / `convertNode(value, isRoot)` + 空根校验）；文件头注释同步为"导入/导出器"；负向用例随 parity 一并覆盖 | `pnpm verify` 两端绿；parity `0 mismatch`（km.ts 共享且一致） |
+
+### R2.5 本批待人工 GUI 确认（与本审核无关，HANDOFF 已记录）
+
+- 原生菜单切语言即时本地化（debug 模式打开设置切换语言）
+- 项目 dialogs 在右键重命名 / 删除 / 退出拦截弹窗的呈现与 Esc/Enter 行为
+- Tauri `base './'` 下懒加载路由刷新不白屏
+- Tauri 重打包（`pnpm build:tauri`）后安装包验证新图标与对话框文案
+
+---
+
+## 5. 修复登记表（Round 2 更新）
+
+| 编号 | 严重度 | 描述 | 修复状态 | 验证 | 修改文件 |
+|---|---|---|---|---|---|
+| P0-1 | P0 | useShortcuts 修饰键精确匹配 + 4 组按键冲突 | ☐ | ☐ | 两端 `composables/useShortcuts.ts` + `tests/` |
+| P1-1 | P1 | `shortcut.outdent`/`shortcut.indent` 缺失或误用（8 locale） | ☐ | ☐ | 两端 `i18n/locales/*.json` |
+| P1-2 | P1 | tauri-spike en 缺 `node.defaultName` | ☐ | ☐ | `tauri-spike/src/i18n/locales/en.json` |
+| P1-3 | P1 | `command.*`（reorderNode/addParent/pasteNode/updateNote）两端补齐 | ☐ | ☐ | 两端 `i18n/locales/*.json` |
+| P1-4 | P1 | Web `core/km.ts` 与 Tauri 同步（头注释 + 空根校验 + 负向测试） | ✅（Round 2 / `4b68c22`） | ✅ 两端 verify + parity 0 | `mindmap-vue3/src/core/km.ts`（收敛至 Tauri 规范版） |
+| P2-1 | P2 | `removeNode` 前置守卫（根/不存在不入栈） | ☐ | ☐ | 两端 `stores/mindmap.ts` |
+| P2-2 | P2 | 删除死代码 `store.handleKey` | ☐ | ☐ | 两端 `stores/mindmap.ts`（先确认无引用） |
+| P2-3 | P2 | ShortcutsView scope 分组占位（可选） | ☐ | ☐ | 两端 `core/shortcuts.ts` |
