@@ -63,10 +63,16 @@ function removeSelected() {
         <label>{{ t('panel.note') }}</label>
         <textarea :value="store.selectedNode.note ?? ''" rows="4" @change="setNote" />
       </div>
-      <button @click="addChild">{{ t('panel.addChild') }}</button>
-      <button v-if="store.selectedId !== store.doc.root.id" class="danger" @click="removeSelected">
-        {{ t('panel.delete') }}
-      </button>
+      <div class="actions">
+        <button @click="addChild">{{ t('panel.addChild') }}</button>
+        <button
+          v-if="store.selectedId !== store.doc.root.id"
+          class="danger"
+          @click="removeSelected"
+        >
+          {{ t('panel.delete') }}
+        </button>
+      </div>
     </div>
     <div v-else class="props">
       <p style="color: var(--fg-mute); margin: 0">
@@ -197,6 +203,14 @@ function removeSelected() {
   border: none;
   border-radius: 3px;
   cursor: pointer;
+}
+.props .actions {
+  display: flex;
+  gap: 8px;
+}
+.props .actions button {
+  flex: 1;
+  margin-top: 6px;
 }
 .props button.danger {
   background: var(--danger);
