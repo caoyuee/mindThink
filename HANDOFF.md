@@ -566,6 +566,61 @@ Web 端修复 `exportSvg`/`exportPng` 多余的第三个参数（Web 版 `core/f
 - 右键节点：弹出上下文菜单；"重命名"项调用 `window.prompt`。
 - 双击：不再特殊处理。
 
+### 快捷键说明页 + 全局 Mod+/ 快捷键（2026-09-05）
+
+为对齐 legacy 项目的 `Ctrl+/` 弹出快捷键对话框，改为**路由页面 + 顶栏入口 + 全局快捷键**：
+
+**新增文件**
+
+- `views/ShortcutsView.vue`（两端）：按 4 组展示所有快捷键
+  - 历史：撤销/重做（Mod+Z/Y/Shift+Z）
+  - 节点操作：Tab/Shift+Tab/Enter/F2/Delete/方向键/Alt+↑↓/Space/Mod+点击/Mod+C/X/V/F/B/I/Shift+Enter
+  - 视野控制：拖动/右键拖动/滚轮/Mod+滚轮/触摸板/双击空白
+  - 布局：Mod+Enter 居中根节点、Mod+0 整理布局
+
+**路由**
+
+- `router/index.ts` 新增 `/shortcuts` 路由（meta.title: 'Shortcuts'）。
+
+**导航入口**
+
+- `AppHeader.vue` 在设置/关于之间插入"快捷键"按钮。
+
+**全局快捷键**
+
+- `App.vue` 在 `onMounted` 注册 `keydown` 监听：
+
+  ```ts
+  function onGlobalKeydown(e: KeyboardEvent) {
+    if (e.key !== '/') return;
+    const mod = navigator.platform.includes('Mac') ? e.metaKey : e.ctrlKey;
+    if (!mod) return;
+    const target = e.target as HTMLElement | null;
+    if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+    e.preventDefault();
+    void router.push('/shortcuts');
+  }
+  ```
+
+- 路由跳转而不是打开模态，复用现有 SPA 架构。
+- 输入框/textarea/contentEditable 中不触发，避免误触。
+
+**i18n 新增**
+
+- `menu.goShortcuts`（4 语言）
+- `shortcut.hint` 提示 macOS/Windows/Linux 平台 `Mod` 差异
+
+**验证**
+
+- 两端 `pnpm verify` 通过（Tauri 42 tests，Web 35 tests）
+- 提交：`c46a6ef feat: 新增快捷键说明页与全局Mod+/快捷键`
+
+**未实现/已知差异**
+
+- ShortcutsView 纯模板（数据驱动自 `groups` 数组），当前项目无 `@vue/test-utils`，未补组件测试。
+- 描述中的快捷键包括了一些 markmap/kityminder 历史遗留（如 F2 插入父节点、Mod+B 加粗），当前 store 未实现，UI 仅展示。
+- 按 `command.addChild` 等键名可后续统一到 `useShortcuts` composable 的注册表，由一处定义后供 ShortcutsView 和快捷键注册复用。
+
 ## 8. 常用验证命令
 
 前端（两个工程分别执行）：
