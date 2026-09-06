@@ -29,6 +29,7 @@ const shortcutMessages = {
   bold: '加粗',
   italic: '斜体',
   findNode: '查找节点',
+  newline: '换行',
   dragScope: '拖动视野',
   drag: '拖动',
   dragRight: '右键拖动',

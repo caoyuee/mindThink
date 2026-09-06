@@ -39,3 +39,30 @@ export function fromKmJson(input: string): MindNode {
   }
   return convert(parsed['root']);
 }
+
+/** 单个 MindNode -> KityMinder 节点 JSON（{data, children?}）。 */
+function kmNodeOf(node: MindNode): JsonObject {
+  const data: JsonObject = { ...node.meta };
+  // 以当前模型为准覆盖 text/note（meta 中可能保留旧值）。
+  data['text'] = node.text;
+  if (node.note) data['note'] = node.note;
+  else delete data['note'];
+  const out: JsonObject = { data };
+  if (node.children.length > 0) {
+    out['children'] = node.children.map(kmNodeOf);
+  }
+  return out;
+}
+
+/**
+ * 将 MindNode 导出为 KityMinder .km 的 JSON 文本。
+ * 默认模板/主题与 legacy 一致（filetree / fresh-blue），meta 中的扩展字段会保留。
+ */
+export function toKmJson(root: MindNode): string {
+  const doc = {
+    root: kmNodeOf(root),
+    template: 'filetree',
+    theme: 'fresh-blue',
+  };
+  return JSON.stringify(doc, null, 2);
+}

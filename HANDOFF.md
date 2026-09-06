@@ -645,6 +645,23 @@ Web 端修复 `exportSvg`/`exportPng` 多余的第三个参数（Web 版 `core/f
 
 **验证**：Tauri 48 tests、Web 40 tests 全通过，无 intlify 警告。提交 `f01a801 修复部分样式错位，新增快捷键页面`。
 
+### .km 原生导出（2026-09-05 继续 legacy 对齐）
+
+用户选择下一步实现 "导出 .km 原生格式"（legacy/百度脑图兼容）：
+
+- `core/km.ts`（两端）新增 `toKmJson(root)`：MindNode → KityMinder JSON 文本
+  - `{ root: { data, children }, template: 'filetree', theme: 'fresh-blue' }`
+  - meta 扩展字段保留；text/note 以当前模型为准
+  - 叶子节点省略 children
+- `core/file.ts`（两端）新增 `exportKm(content, suggestedName, title?)`
+  - Tauri：保存对话框 .km + tauriWriteFile
+  - Web：downloadBlob application/json
+- `components/editor/MindEditor.vue`（两端）导出区新增 "导出 KM" 按钮，`exportKm(toKmJson(store.doc.root), '{root}.km')`
+- i18n：8 locale 新增 `toolbar.exportKm`；Tauri 4 locale 新增 `dialog.exportKm`（对话框标题）
+- Tauri 新增 `tests/km.spec.ts`（此前仅 Web 有）；Web 扩充 round-trip 测试
+  - 4 tests：导入、round-trip 保层级与 meta、叶子省略 children、非法输入拒绝
+- 验证：Tauri 52 tests、Web 42 tests 全通过
+
 ## 8. 常用验证命令
 
 前端（两个工程分别执行）：

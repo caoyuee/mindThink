@@ -69,6 +69,26 @@ export async function exportPng(
   return true;
 }
 
+/** 保存导出的 KityMinder .km JSON 文本（兼容 legacy/百度脑图）。 */
+export async function exportKm(
+  content: string,
+  suggestedName: string,
+  title = 'Export KityMinder file',
+): Promise<boolean> {
+  if (isTauri()) {
+    const path = await tauri.tauriSaveDialog({
+      title,
+      filters: [{ name: 'KityMinder', extensions: ['km'] }],
+      defaultPath: suggestedName,
+    });
+    if (!path) return false;
+    await tauri.tauriWriteFile(path, content);
+    return true;
+  }
+  downloadBlob(content, suggestedName, 'application/json');
+  return true;
+}
+
 /** 创建已有文件的备份。 */
 export async function backupFile(path: string): Promise<boolean> {
   if (!isTauri()) return false;

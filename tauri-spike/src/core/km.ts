@@ -1,6 +1,6 @@
 /**
- * KityMinder .km 导入器。
- * 只负责把旧版 JSON 树转换成当前 MindNode，不依赖 Vue 或 Tauri。
+ * KityMinder .km 导入/导出器。
+ * 只负责旧版 JSON 树与当前 MindNode 的双向转换，不依赖 Vue 或 Tauri。
  */
 import { createNode, type MindNode } from './tree';
 
@@ -47,4 +47,31 @@ export function fromKmJson(input: string): MindNode {
     throw new Error('KM 文件缺少 root 节点');
   }
   return convertNode(parsed['root'], true);
+}
+
+/** 单个 MindNode -> KityMinder 节点 JSON（{data, children?}）。 */
+function kmNodeOf(node: MindNode): JsonObject {
+  const data: JsonObject = { ...node.meta };
+  // 以当前模型为准覆盖 text/note（meta 中可能保留旧值）。
+  data['text'] = node.text;
+  if (node.note) data['note'] = node.note;
+  else delete data['note'];
+  const out: JsonObject = { data };
+  if (node.children.length > 0) {
+    out['children'] = node.children.map(kmNodeOf);
+  }
+  return out;
+}
+
+/**
+ * 将 MindNode 导出为 KityMinder .km 的 JSON 文本。
+ * 默认模板/主题与 legacy 一致（filetree / fresh-blue），meta 中的扩展字段会保留。
+ */
+export function toKmJson(root: MindNode): string {
+  const doc = {
+    root: kmNodeOf(root),
+    template: 'filetree',
+    theme: 'fresh-blue',
+  };
+  return JSON.stringify(doc, null, 2);
 }

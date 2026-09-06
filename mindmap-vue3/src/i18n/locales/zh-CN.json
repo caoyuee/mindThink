@@ -26,6 +26,7 @@
     "save": "💾 保存",
     "exportSvg": "导出 SVG",
     "exportPng": "导出 PNG",
+    "exportKm": "导出 KM",
     "toggleNode": "折叠/展开",
     "undo": "↶ 撤销",
     "redo": "↷ 重做",

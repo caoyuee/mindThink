@@ -30,6 +30,7 @@
     "clearRecent": "清空最近",
     "exportSvg": "导出 SVG",
     "exportPng": "导出 PNG",
+    "exportKm": "导出 KM",
     "toggleNode": "折叠/展开",
     "undo": "↶ 撤销",
     "redo": "↷ 重做",
@@ -132,6 +133,7 @@
   "dialog": {
     "exportSvg": "导出 SVG",
     "exportPng": "导出 PNG",
+    "exportKm": "导出 KityMinder 文件",
     "saveMindmap": "保存脑图",
     "openMindmap": "打开脑图"
   },

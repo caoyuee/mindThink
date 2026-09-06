@@ -11,7 +11,8 @@ import { useMindmapStore } from '@/stores/mindmap';
 import { useUiStore } from '@/stores/ui';
 import { useShortcuts } from '@/composables/useShortcuts';
 import NodeContextMenu from './NodeContextMenu.vue';
-import { exportPng, exportSvg } from '@/core/file';
+import { exportKm, exportPng, exportSvg } from '@/core/file';
+import { toKmJson } from '@/core/km';
 import { useToastStore } from '@/composables/useToast';
 import { focusSearchInput } from '@/composables/useSearchFocus';
 import type { MarkmapRuntimeNode } from '@/types/markmap';
@@ -178,6 +179,11 @@ async function exportCurrentPng(): Promise<void> {
   }
 }
 
+async function exportCurrentKm(): Promise<void> {
+  const ok = await exportKm(toKmJson(store.doc.root), `${store.doc.root.text || 'mindmap'}.km`);
+  if (ok) toast.success(t('toast.exported'));
+}
+
 async function toggleSelectedNode(): Promise<void> {
   if (!mm || !selectedMarkmapNode.value) return;
   await mm.toggleNode(selectedMarkmapNode.value as never, false);
@@ -274,6 +280,9 @@ defineExpose({ closeMenu });
       </button>
       <button :title="t('toolbar.exportPng')" @click.stop="void exportCurrentPng()">
         {{ t('toolbar.exportPng') }}
+      </button>
+      <button :title="t('toolbar.exportKm')" @click.stop="void exportCurrentKm()">
+        {{ t('toolbar.exportKm') }}
       </button>
       <button
         :title="t('toolbar.toggleNode')"

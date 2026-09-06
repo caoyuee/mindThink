@@ -67,6 +67,12 @@ export async function exportPng(data: Blob, suggestedName = 'mindmap.png'): Prom
   return true;
 }
 
+/** 保存导出的 KityMinder .km JSON 文本（兼容 legacy/百度脑图）。 */
+export async function exportKm(content: string, suggestedName = 'mindmap.km'): Promise<boolean> {
+  download(content, suggestedName, 'application/json');
+  return true;
+}
+
 export async function saveFile(
   content: string,
   suggestedName = 'untitled.md',

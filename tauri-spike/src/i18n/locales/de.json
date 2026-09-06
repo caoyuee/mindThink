@@ -30,6 +30,7 @@
     "clearRecent": "Verlauf leeren",
     "exportSvg": "SVG exportieren",
     "exportPng": "PNG exportieren",
+    "exportKm": "KM exportieren",
     "toggleNode": "Ein-/Ausklappen",
     "undo": "↶ Rückgängig",
     "redo": "↷ Wiederherstellen",
@@ -132,6 +133,7 @@
   "dialog": {
     "exportSvg": "SVG exportieren",
     "exportPng": "PNG exportieren",
+    "exportKm": "KityMinder-Datei exportieren",
     "saveMindmap": "Mindmap speichern",
     "openMindmap": "Mindmap öffnen"
   },

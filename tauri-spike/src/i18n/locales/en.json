@@ -30,6 +30,7 @@
     "clearRecent": "Clear recent",
     "exportSvg": "Export SVG",
     "exportPng": "Export PNG",
+    "exportKm": "Export KM",
     "toggleNode": "Collapse/expand",
     "undo": "↶ Undo",
     "redo": "↷ Redo",
@@ -131,6 +132,7 @@
   "dialog": {
     "exportSvg": "Export SVG",
     "exportPng": "Export PNG",
+    "exportKm": "Export KityMinder file",
     "saveMindmap": "Save mind map",
     "openMindmap": "Open mind map"
   },
