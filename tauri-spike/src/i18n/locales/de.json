@@ -52,6 +52,7 @@
     "navigate": "Navigation",
     "goEditor": "Editor",
     "goSettings": "Einstellungen",
+    "goShortcuts": "Tastenkürzel",
     "goAbout": "Über",
     "devtoolsUnavailable": "Die Entwicklertools sind in Entwicklungs-Builds verfügbar"
   },
@@ -94,6 +95,7 @@
   },
   "shortcut": {
     "title": "Tastenkürzel",
+    "hint": "Mod ist Cmd auf macOS und Ctrl auf Windows / Linux",
     "sectionNodeOp": "Knotenoperationen",
     "sectionScope": "Ansichtssteuerung",
     "sectionLayout": "Layout",

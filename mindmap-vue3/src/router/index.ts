@@ -5,6 +5,7 @@
  * - /           → EditorView（默认, 重定向）
  * - /editor     → EditorView
  * - /settings   → SettingsView
+ * - /shortcuts  → ShortcutsView
  * - /about      → AboutView
  * - /:pathMatch(.*)* → NotFoundView
  */
@@ -24,6 +25,12 @@ const routes: RouteRecordRaw[] = [
     name: 'settings',
     component: () => import('@/views/SettingsView.vue'),
     meta: { title: 'Settings' },
+  },
+  {
+    path: '/shortcuts',
+    name: 'shortcuts',
+    component: () => import('@/views/ShortcutsView.vue'),
+    meta: { title: 'Shortcuts' },
   },
   {
     path: '/about',

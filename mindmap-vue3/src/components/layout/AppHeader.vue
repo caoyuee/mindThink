@@ -41,6 +41,12 @@ function isActive(name: string): boolean {
       >
         {{ t('menu.goSettings') }}
       </button>
+      <button
+        :class="['nav-item', { active: isActive('shortcuts') }]"
+        @click="router.push('/shortcuts')"
+      >
+        {{ t('menu.goShortcuts') }}
+      </button>
       <button :class="['nav-item', { active: isActive('about') }]" @click="router.push('/about')">
         {{ t('menu.goAbout') }}
       </button>

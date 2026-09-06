@@ -48,6 +48,7 @@
     "navigate": "Navigate",
     "goEditor": "Editor",
     "goSettings": "Settings",
+    "goShortcuts": "Shortcuts",
     "goAbout": "About"
   },
   "panel": {
@@ -88,6 +89,7 @@
   },
   "shortcut": {
     "title": "Keyboard shortcuts",
+    "hint": "Mod maps to Cmd on macOS, and Ctrl on Windows / Linux",
     "sectionNodeOp": "Node operations",
     "sectionScope": "View control",
     "sectionLayout": "Layout",

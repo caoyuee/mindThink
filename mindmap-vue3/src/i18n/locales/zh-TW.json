@@ -48,6 +48,7 @@
     "navigate": "導覽",
     "goEditor": "編輯器",
     "goSettings": "設定",
+    "goShortcuts": "快捷鍵",
     "goAbout": "關於"
   },
   "panel": {
@@ -88,6 +89,7 @@
   },
   "shortcut": {
     "title": "快捷鍵",
+    "hint": "macOS 上 Mod 即 Cmd；Windows / Linux 上 Mod 即 Ctrl",
     "sectionNodeOp": "節點操作",
     "sectionScope": "視野控制",
     "sectionLayout": "佈局",

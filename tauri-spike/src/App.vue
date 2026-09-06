@@ -261,6 +261,29 @@ onBeforeUnmount(() => {
   stopMcpListener = null;
   stopMcpRpcListener = null;
 });
+
+/** 全局快捷键：Mod+/ 跳转到快捷键说明页。 */
+function onGlobalKeydown(e: KeyboardEvent): void {
+  if (e.key !== '/') return;
+  const mod = navigator.platform.includes('Mac') ? e.metaKey : e.ctrlKey;
+  if (!mod) return;
+  const target = e.target as HTMLElement | null;
+  if (
+    target &&
+    (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
+  ) {
+    return;
+  }
+  e.preventDefault();
+  void router.push('/shortcuts');
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', onGlobalKeydown);
+});
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onGlobalKeydown);
+});
 </script>
 
 <template>
