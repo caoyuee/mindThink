@@ -106,7 +106,10 @@
     "setRootText": "Hauptthema bearbeiten",
     "updateNote": "Knotennotiz aktualisieren",
     "indentNode": "Knoten einrücken",
-    "outdentNode": "Knoten ausrücken"
+    "outdentNode": "Knoten ausrücken",
+    "reorderNode": "Knoten umsortieren",
+    "addParent": "Übergeordneten Knoten einfügen",
+    "pasteNode": "Knoten einfügen"
   },
   "shortcut": {
     "title": "Tastenkürzel",
@@ -116,6 +119,8 @@
     "sectionScope": "Ansichtssteuerung",
     "sectionLayout": "Layout",
     "sectionHistory": "Verlauf",
+    "indent": "Einrücken",
+    "outdent": "Rückgängig machen",
     "insertSibling": "Geschwister einfügen",
     "insertChild": "Kind einfügen",
     "insertParent": "Übergeordnet einfügen",
@@ -132,6 +137,7 @@
     "bold": "Fett",
     "italic": "Kursiv",
     "findNode": "Knoten suchen",
+    "statusPlanned": "Geplant",
     "dragScope": "Ansicht ziehen",
     "drag": "Ziehen",
     "dragRight": "Rechts ziehen",
@@ -140,7 +146,6 @@
     "dblClickSpace": "Doppelklick auf Leerraum",
     "placeRoot": "Wurzel zentrieren",
     "zoomScope": "Ansicht zoomen",
-    "layoutInOrder": "Layout aufräumen",
     "undo": "Rückgängig",
     "redo": "Wiederherstellen"
   },

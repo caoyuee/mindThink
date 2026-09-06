@@ -121,4 +121,25 @@ describe('mindmap store selection and history', () => {
     expect(store.moveSelection('firstChild')).toBe(true);
     expect(store.selectedId).toBe(first);
   });
+
+  it('does not push an empty undo entry when removing the root or a missing node (P2-1)', () => {
+    const store = useMindmapStore();
+    store.addChild(store.doc.root.id, 'Child');
+    const beforeTotal = store.totalNodes;
+    expect(store.canUndo).toBe(true); // 来自 addChild
+
+    store.removeNode(store.doc.root.id); // 根：前置守卫，不入栈
+    expect(store.totalNodes).toBe(beforeTotal);
+    expect(store.doc.root.children.map((n) => n.text)).toEqual(['Child']);
+
+    store.undo(); // 只回退 addChild，说明 removeNode(根) 没追加历史
+    expect(store.doc.root.children).toHaveLength(0);
+    expect(store.canUndo).toBe(false);
+
+    store.addChild(store.doc.root.id, 'Child');
+    expect(store.canUndo).toBe(true);
+    store.removeNode('missing-id'); // 不存在：前置守卫，不入栈
+    store.undo();
+    expect(store.canUndo).toBe(false);
+  });
 });

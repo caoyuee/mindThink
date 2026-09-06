@@ -174,8 +174,10 @@ export const useMindmapStore = defineStore('mindmap', () => {
   }
 
   function removeNode(id: string): void {
+    // 前置守卫：根节点或找不到节点时直接返回，不产生空撤销命令（与 reorderNode 等一致）。
+    if (id === doc.value.root.id || !findNode(doc.value.root, id)) return;
     applyEdit((d) => {
-      if (id === d.root.id) return d; // 不允许删除根
+      if (id === d.root.id) return d; // 双保险，不允许删除根
       const parent = findParent(d.root, id);
       if (!parent) return d;
       parent.children = parent.children.filter((c) => c.id !== id);
@@ -477,33 +479,7 @@ export const useMindmapStore = defineStore('mindmap', () => {
     selectedId.value = id;
   }
 
-  // 键盘快捷键（MindEditor 等组件统一调用）
-  function handleKey(e: KeyboardEvent): void {
-    if (!selectedId.value) return;
-    const meta = e.ctrlKey || e.metaKey;
-    if (meta && e.key.toLowerCase() === 'z') {
-      e.preventDefault();
-      if (e.shiftKey) redo();
-      else undo();
-      return;
-    }
-    if (meta && e.key.toLowerCase() === 'y') {
-      e.preventDefault();
-      redo();
-      return;
-    }
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      if (e.shiftKey) outdentNode(selectedId.value);
-      else indentNode(selectedId.value);
-      return;
-    }
-    if (e.key === 'Delete') {
-      // 区分纯 Backspace（编辑文本时用）与 Delete（删除节点）
-      e.preventDefault();
-      removeNode(selectedId.value);
-    }
-  }
+  // 键盘快捷键：已由 useShortcuts + SHORTCUT_REGISTRY 统一接管，此处的重复分发逻辑已删除。
 
   return {
     // state
@@ -547,6 +523,5 @@ export const useMindmapStore = defineStore('mindmap', () => {
     loadBigTree,
     reset,
     select,
-    handleKey,
   };
 });

@@ -65,11 +65,7 @@ export default defineConfig({
     watch: {
       // Tauri 编译产物里包含被 Windows 锁定的 .exe（即使没有 dev server 也可能占用）。
       // 同时 .rs 文件不应触发前端热更新。
-      ignored: [
-        '**/src-tauri/target/**',
-        '**/*.rs',
-        '**/.git/**',
-      ],
+      ignored: ['**/src-tauri/target/**', '**/*.rs', '**/.git/**'],
     },
   },
   // Tauri 在生产环境期待相对路径资源

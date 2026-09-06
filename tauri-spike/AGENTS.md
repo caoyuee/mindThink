@@ -77,19 +77,19 @@
 
 ## 3. 修改决策树（遇到任何修改前先回答）
 
-| 场景 | 落点 |
-|---|---|
-| 新增脑图节点操作（增删改） | `stores/mindmap.ts` 的 actions |
-| 新增树形算法（找路径、遍历） | `core/tree.ts` |
-| 新增命令（一种新的可撤销操作） | `core/commands.ts` |
-| 新增文件 IO 能力（导出 PNG、JSON） | `core/file.ts` |
-| 新增 UI 控件 | `components/{layout,editor,panels,dialogs,common}/` |
-| 新增路由页面 | `views/<Name>.vue` + `router/index.ts` |
-| 新增全局 hook（快捷键、toast） | `composables/` |
-| 新增类型/接口 | `types/` 下，按域拆分 |
-| 修改 markmap 集成 | **只改 `components/editor/MindEditor.vue`** |
-| 修改主题颜色/间距 | 只改 `styles/global.css` 的 CSS 变量 |
-| 翻译文本 | `i18n/locales/*.json` |
+| 场景                               | 落点                                                |
+| ---------------------------------- | --------------------------------------------------- |
+| 新增脑图节点操作（增删改）         | `stores/mindmap.ts` 的 actions                      |
+| 新增树形算法（找路径、遍历）       | `core/tree.ts`                                      |
+| 新增命令（一种新的可撤销操作）     | `core/commands.ts`                                  |
+| 新增文件 IO 能力（导出 PNG、JSON） | `core/file.ts`                                      |
+| 新增 UI 控件                       | `components/{layout,editor,panels,dialogs,common}/` |
+| 新增路由页面                       | `views/<Name>.vue` + `router/index.ts`              |
+| 新增全局 hook（快捷键、toast）     | `composables/`                                      |
+| 新增类型/接口                      | `types/` 下，按域拆分                               |
+| 修改 markmap 集成                  | **只改 `components/editor/MindEditor.vue`**         |
+| 修改主题颜色/间距                  | 只改 `styles/global.css` 的 CSS 变量                |
+| 翻译文本                           | `i18n/locales/*.json`                               |
 
 ## 5. 国际化（i18n）
 
@@ -131,13 +131,13 @@
 
 ## 10. 协作入口清单
 
-| 文件 | 何时读 |
-|---|---|
-| `README.md` | 第一次接触项目 |
-| `AGENTS.md`（本文件） | 修改任何代码前 |
-| `CONVENTIONS.md` | 写新代码前 |
-| `ARCHITECTURE.md` | 修改跨模块代码前 |
-| `package.json` scripts | 跑命令前 |
+| 文件                   | 何时读           |
+| ---------------------- | ---------------- |
+| `README.md`            | 第一次接触项目   |
+| `AGENTS.md`（本文件）  | 修改任何代码前   |
+| `CONVENTIONS.md`       | 写新代码前       |
+| `ARCHITECTURE.md`      | 修改跨模块代码前 |
+| `package.json` scripts | 跑命令前         |
 
 ## 11. 提交前自查清单
 

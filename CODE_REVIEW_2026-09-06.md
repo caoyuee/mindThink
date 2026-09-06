@@ -203,11 +203,61 @@ Tauri 缺：`reorderNode`、`addParent`、`pasteNode`。
 
 | 编号 | 严重度 | 描述 | 修复状态 | 验证 | 修改文件 |
 |---|---|---|---|---|---|
-| P0-1 | P0 | useShortcuts 修饰键精确匹配 + 4 组按键冲突 | ☐ | ☐ | 两端 `composables/useShortcuts.ts` + `tests/` |
-| P1-1 | P1 | `shortcut.outdent`/`shortcut.indent` 缺失或误用（8 locale） | ☐ | ☐ | 两端 `i18n/locales/*.json` |
-| P1-2 | P1 | tauri-spike en 缺 `node.defaultName` | ☐ | ☐ | `tauri-spike/src/i18n/locales/en.json` |
-| P1-3 | P1 | `command.*`（reorderNode/addParent/pasteNode/updateNote）两端补齐 | ☐ | ☐ | 两端 `i18n/locales/*.json` |
+| P0-1 | P0 | useShortcuts 修饰键精确匹配 + 4 组按键冲突 | ✅（Round 3） | ✅ 两端 shortcuts.spec 12 例（含 4 组冲突回归） | 两端 `composables/useShortcuts.ts` + `tests/shortcuts.spec.ts` |
+| P1-1 | P1 | `shortcut.outdent`/`shortcut.indent` 缺失或误用（8 locale） | ✅（Round 3） | ✅ ShortcutsView 渲染 + descKey 无 key 泄漏测试 | 两端 `core/shortcuts.ts` + `i18n/locales/*.json` |
+| P1-2 | P1 | tauri-spike en 缺 `node.defaultName` | ✅（Round 3） | ✅ 8 locale 全有 | `tauri-spike/src/i18n/locales/en.json` |
+| P1-3 | P1 | `command.*`（reorderNode/addParent/pasteNode/updateNote）两端补齐 | ✅（Round 3，审核师补 pasteNode） | ✅ 8 locale 全有 | 两端 `i18n/locales/*.json` |
 | P1-4 | P1 | Web `core/km.ts` 与 Tauri 同步（头注释 + 空根校验 + 负向测试） | ✅（Round 2 / `4b68c22`） | ✅ 两端 verify + parity 0 | `mindmap-vue3/src/core/km.ts`（收敛至 Tauri 规范版） |
-| P2-1 | P2 | `removeNode` 前置守卫（根/不存在不入栈） | ☐ | ☐ | 两端 `stores/mindmap.ts` |
-| P2-2 | P2 | 删除死代码 `store.handleKey` | ☐ | ☐ | 两端 `stores/mindmap.ts`（先确认无引用） |
-| P2-3 | P2 | ShortcutsView scope 分组占位（可选） | ☐ | ☐ | 两端 `core/shortcuts.ts` |
+| P2-1 | P2 | `removeNode` 前置守卫（根/不存在不入栈） | ✅（Round 3） | ✅ mindmap-store.spec 新增回归用例 | 两端 `stores/mindmap.ts` |
+| P2-2 | P2 | 删除死代码 `store.handleKey` | ✅（Round 3） | ✅ 两端 typecheck 绿 | 两端 `stores/mindmap.ts` |
+| P2-3 | P2 | ShortcutsView scope 分组占位（可选） | ☐（按可选项放弃） | — | — |
+
+---
+
+## Round 3 审核记录（2026-09-06，开发者修复批次 + 审核补遗）
+
+> 由修复者按 P0 → P1 → P2 顺序提交；本文档作者（审核师）独立复审并补齐遗漏。
+
+### R3.0 门禁实测（独立运行）
+
+- Web `pnpm verify`：parity `PARITY OK`（34 shared / 0 mismatch）→ typecheck / lint /
+  format:check → **65 tests（10 files）** 全绿。
+- Tauri `pnpm verify`：同上 → **77 tests（10 files）** 全绿。
+- 未改 Rust，无需 cargo。
+
+### R3.1 修复明细
+
+| 编号 | 修复方式 | 验证 |
+|---|---|---|
+| **P0-1** | `composables/useShortcuts.ts`（两端）：`matchModifier` 改为**修饰键精确相等**（mod 位为 1 要求事件该位为 true，mod 位为 0 要求事件该位为 false；故 mod=0 时 Ctrl/Alt/Shift/Meta 全须为 false）；抽出并导出纯函数 `parseShortcut` / `matchModifier` / `matchShortcut`（`onKeyDown` 改走 `matchShortcut`）。 | 两端 `shortcuts.spec.ts` 增至 **12 例**（含 Ctrl+Enter→placeRoot 不再被纯 Enter 抢占、Alt+↓→reorder 不再被纯 ↓ 抢占、Shift+Tab→outdent 不再被 Tab 抢占、Ctrl+Shift+Z→redo 不再被 Ctrl+Z 抢占，以及 Ctrl+Shift+C 不触发 copyNode 的衍生防御）。全绿。 |
+| **P1-1** | `core/shortcuts.ts`（两端）：`indent` entry 的 `descKey` 由误用的 `shortcut.insertChild` 改为 `shortcut.indent`；`shortcut.layoutInOrder` entry 已删除（C3 合并入 `placeRoot`），对应的 8 locale 键 `shortcut.layoutInOrder` 一并删除。8 locale 在 `shortcut` 分组新增 `shortcut.indent` / `shortcut.outdent` / `shortcut.statusPlanned` 三键（前者覆盖误用 + 新增，后者用于 selectAll/bold/italic/newline/dblClickSpace 等未实现项的诚实措辞）。 | ShortcutsView 渲染走 registry，每行 `descKey` 均能在 locale 命中；新增 `shortcuts.spec` 用例遍历 registry 全部 descKey 断言渲染不出现原始 key 文本，并断言 `layoutInOrder` 已从 registry 移除。两端绿。 |
+| **P1-2** | `tauri-spike/src/i18n/locales/en.json` 补 `node.defaultName: "New node"`。 | 8 个 locale 现均有 `node.defaultName`（已实测确认）。 |
+| **P1-3** | 按两端各自缺失补齐 `command.*`：Web 4 文件补 `updateNote` / `reorderNode` / `addParent`；Tauri 4 文件补 `reorderNode` / `addParent`（Tauri 已有 `updateNote`）。 | 8 个 locale JSON 均含 `command.updateNote` / `reorderNode` / `addParent` / `pasteNode`（`pasteNode` 由审核师在 R3.2 补齐，见下）。 |
+| **P1-4** | （Round 2 已修，见 R2.4） | — |
+| **P2-1** | `stores/mindmap.ts`（两端）`removeNode`：在 `applyEdit` 前对"根节点 / 找不到节点"前置 `return`，不再压入空撤销命令。 | 两端 `mindmap-store.spec.ts` 新增回归用例（删根 / 删不存在 id 后 undo 仅回退到 addChild，验证不入栈）通过。 |
+| **P2-2** | 删除死代码 `store.handleKey`（定义 + return 导出）。已确认两端均无调用方（快捷键改由 `useShortcuts` + `SHORTCUT_REGISTRY` 接管）。 | 两端 typecheck 绿；导出签名移除后无编译失败。 |
+| **P2-3** | **有意不处理（按可选项放弃）**：registry 化后 `scope` 分组只剩 `dblClickSpace`，拖动/滚轮等属鼠标操作而非键盘绑定；建议未来以非快捷键说明块呈现，非本批键盘错误范围。 | — |
+
+### R3.2 审核师补遗（修复者遗漏的 P1-3 一项）
+
+修复者提交时 `command.pasteNode` 键在 **全部 8 个 locale 文件中均缺失**（`store.mindmap.ts::pasteNode` 与 `cutNode` 调用 `applyEdit(..., 'command.pasteNode' / 'command.removeNode')`，其中 `pasteNode` 命名键未在任何 locale 的 `command` 分组中存在）。AGENTS 明确"命令栈命令名必须用 i18n key / 四语言同步"，且 store 现已有 `lastUndoName`/`lastRedoName` 计算属性——一旦未来 Toolbar 展示"上一次操作"即会回退显示原始 key。
+
+**审核师在本次提交中补齐**：8 个 locale JSON `command` 分组均新增 `pasteNode`（zh-CN `粘贴节点` / en `Paste node` / zh-TW `貼上節點` / de `Knoten einfügen`）。
+
+补齐后 `pnpm verify` 两端仍全绿（65 / 77 tests，parity 0 mismatch）。
+
+> 此项修复者原始完成记录（HANDOFF.md §R3 与本文件原 R3.1 P1-3 行）声明"8 个 locale JSON 均含 command.updateNote/reorderNode/addParent/pasteNode"——其中 `pasteNode` 部分与代码实际不符，审核师已纠正。修复者后续批次应将"以 locale 全文 grep 验证所有命令名键存在"纳入完成自检。
+
+### R3.3 修改文件汇总
+
+- 两端：`src/composables/useShortcuts.ts`、`src/core/shortcuts.ts`、`src/stores/mindmap.ts`、
+  `src/tests/shortcuts.spec.ts`、`src/tests/mindmap-store.spec.ts`、
+  `src/i18n/locales/{zh-CN,en,zh-TW,de}.json`。
+- Tauri 仅：`src/i18n/locales/en.json`（`node.defaultName`）。
+- 审核师本轮新增：`src/i18n/locales/{zh-CN,en,zh-TW,de}.json` ×2 棵（共 8 个文件，`command.pasteNode`）。
+
+### R3.4 仍需 GUI 实机确认（§1.4 验收项）
+
+- Alt+↑/↓ 重排而非移动选区；Shift+Tab 左缩进；Mod+Enter 根节点居中；Ctrl+Shift+Z 重做；
+  英文界面新增节点默认文案显示 "New node"；中文 / 繁中 / 德文界面 `shortcut.indent/outdent/statusPlanned`
+  显示对应本地化文案（"向右缩进 / 向右縮排 / Einrücken" 等）；`layoutInOrder` 行不再出现。

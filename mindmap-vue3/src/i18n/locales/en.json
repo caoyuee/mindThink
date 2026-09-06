@@ -86,7 +86,11 @@
     "removeNode": "Delete node",
     "setRootText": "Edit root topic",
     "indentNode": "Indent node",
-    "outdentNode": "Outdent node"
+    "outdentNode": "Outdent node",
+    "updateNote": "Update node note",
+    "reorderNode": "Reorder node",
+    "addParent": "Insert parent node",
+    "pasteNode": "Paste node"
   },
   "shortcut": {
     "title": "Keyboard shortcuts",
@@ -96,6 +100,8 @@
     "sectionScope": "View control",
     "sectionLayout": "Layout",
     "sectionHistory": "History",
+    "indent": "Indent",
+    "outdent": "Outdent",
     "insertSibling": "Insert sibling",
     "insertChild": "Insert child",
     "insertParent": "Insert parent",
@@ -112,6 +118,7 @@
     "bold": "Bold",
     "italic": "Italic",
     "findNode": "Find node",
+    "statusPlanned": "Planned",
     "dragScope": "Drag view",
     "drag": "Drag",
     "dragRight": "Right-drag",
@@ -120,7 +127,6 @@
     "dblClickSpace": "Double-click space",
     "placeRoot": "Center root",
     "zoomScope": "Zoom view",
-    "layoutInOrder": "Tidy layout",
     "undo": "Undo",
     "redo": "Redo"
   },

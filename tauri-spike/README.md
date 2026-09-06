@@ -121,8 +121,8 @@ tauri-spike/
 ```typescript
 import { saveFile, openFile } from '@/core/file';
 
-await saveFile(content, suggestedName);  // → tauri 或 web
-await openFile();                          // → tauri 或 web
+await saveFile(content, suggestedName); // → tauri 或 web
+await openFile(); // → tauri 或 web
 ```
 
 调用方（stores/components）**完全不需要**关心运行平台。
@@ -133,20 +133,22 @@ Rust 端通过 `app.emit("menu_event", id)` 发送菜单点击事件，前端监
 
 ```typescript
 import { listen } from '@tauri-apps/api/event';
-await listen<string>('menu_event', (e) => { /* 处理 e.payload */ });
+await listen<string>('menu_event', (e) => {
+  /* 处理 e.payload */
+});
 ```
 
 业务逻辑保持在 Vue 层。
 
 ### 5.3 安全模型
 
-| 维度 | 设置 |
-|---|---|
-| `nodeIntegration` | **关闭** |
-| `contextIsolation` | **开启** |
-| CSP | `default-src 'self'; connect-src 'self' ipc: http://ipc.localhost` |
-| 权限 | `capabilities/default.json` 白名单 |
-| 路径校验 | Rust `validate_path()` 拒绝相对路径 |
+| 维度               | 设置                                                               |
+| ------------------ | ------------------------------------------------------------------ |
+| `nodeIntegration`  | **关闭**                                                           |
+| `contextIsolation` | **开启**                                                           |
+| CSP                | `default-src 'self'; connect-src 'self' ipc: http://ipc.localhost` |
+| 权限               | `capabilities/default.json` 白名单                                 |
+| 路径校验           | Rust `validate_path()` 拒绝相对路径                                |
 
 ## 6. 质量门禁
 
@@ -244,13 +246,18 @@ curl -X POST http://127.0.0.1:8765/mcp \
 请求示例：
 
 ```json
-{"jsonrpc":"2.0","id":1,"method":"tools/list"}
+{ "jsonrpc": "2.0", "id": 1, "method": "tools/list" }
 ```
 
 调用工具示例：
 
 ```json
-{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"update_node","arguments":{"id":"n_x","text":"新标题"}}}
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tools/call",
+  "params": { "name": "update_node", "arguments": { "id": "n_x", "text": "新标题" } }
+}
 ```
 
 外部 bridge 应监听 `mcp_rpc_response`，并将收到的每一条 JSON-RPC 请求通过 Tauri 事件发送到 `mcp_rpc_request`。`tools/call` 的写操作由前端 store action 执行，因此继续进入撤销/重做栈。独立 stdio/HTTP transport 尚未内置，待后续以 Rust sidecar 或本地受控 HTTP 服务实现。

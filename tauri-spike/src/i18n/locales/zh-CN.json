@@ -106,7 +106,10 @@
     "setRootText": "修改中心主题",
     "updateNote": "修改节点备注",
     "indentNode": "节点右缩进",
-    "outdentNode": "节点左缩进"
+    "outdentNode": "节点左缩进",
+    "reorderNode": "重排节点",
+    "addParent": "插入父节点",
+    "pasteNode": "粘贴节点"
   },
   "shortcut": {
     "title": "快捷键",
@@ -116,6 +119,8 @@
     "sectionScope": "视野控制",
     "sectionLayout": "布局",
     "sectionHistory": "撤销/重做",
+    "indent": "向右缩进",
+    "outdent": "向左缩进",
     "insertSibling": "插入兄弟节点",
     "insertChild": "插入子节点",
     "insertParent": "插入父节点",
@@ -132,6 +137,7 @@
     "bold": "加粗",
     "italic": "斜体",
     "findNode": "查找节点",
+    "statusPlanned": "规划中",
     "dragScope": "拖动视野",
     "drag": "拖动",
     "dragRight": "右键拖动",
@@ -140,7 +146,6 @@
     "dblClickSpace": "双击空白处",
     "placeRoot": "根节点居中",
     "zoomScope": "缩放视野",
-    "layoutInOrder": "整理布局",
     "undo": "撤销",
     "redo": "重做"
   },

@@ -1182,5 +1182,115 @@ Tauri 端沿用 `base './'`，懒加载 chunk 仍按相对路径产出。
 
 本项状态：**完成（代码 + cargo + 两端 verify/clippy）**，原生菜单即时切换待 GUI 冒烟确认。
 
+---
+
+## CODE_REVIEW Round 3 修复完成记录（2026-09-06）
+
+按 `CODE_REVIEW_2026-09-06.md` 的 P0 → P1 → P2 顺序修复审核问题（P1-4 已在 Round 2 完成）。
+
+### 目标一句话
+
+修复 P0 快捷键修饰键匹配缺陷与 P1/P2 的 i18n 同步与健壮性问题；两端同步并补键盘级与
+store 回归测试。
+
+### 修改文件清单（两端）
+
+- `src/composables/useShortcuts.ts`：`matchModifier` 改为修饰键**精确相等**（mod=0 需所有
+  修饰键为 false），抽出并导出纯函数 `parseShortcut`/`matchModifier`/`matchShortcut`，
+  `onKeyDown` 改走 `matchShortcut`。
+- `src/core/shortcuts.ts`：`indent` 的 `descKey` 由误用 `shortcut.insertChild` 修正为
+  `shortcut.indent`。
+- `src/stores/mindmap.ts`：`removeNode` 在 `applyEdit` 前对"根节点/找不到节点"前置 return
+  （不压空撤销命令）；删除无调用方的死代码 `handleKey`（定义 + return 导出）。
+- `src/tests/shortcuts.spec.ts`：新增 7 例键盘级匹配（4 组冲突 + 多余修饰键 + parse/matchModifier）。
+- `src/tests/mindmap-store.spec.ts`：新增 P2-1 回归（删根/不存在节点不入栈）。
+- `src/i18n/locales/{zh-CN,en,zh-TW,de}.json`：`command.*` 补齐（Web +updateNote/reorderNode/
+  addParent；Tauri +reorderNode/addParent）。
+- 仅 Tauri：`src/i18n/locales/en.json` 补 `node.defaultName`（P1-2）。
+- P2-3（scope 分组占位，可选）**有意不处理**：registry 只收键盘绑定，手势说明建议以非快捷键
+  说明块呈现（详见 CODE_REVIEW Round 3）。
+
+### 验证结果（两端 test 数）
+
+- parity：`PARITY OK`（34 shared / 0 mismatch）。
+- Web `mindmap-vue3` `pnpm verify`：**65 tests（10 files）** 全绿（上轮 56 → +9）。
+- Tauri `tauri-spike` `pnpm verify`：**77 tests（10 files）** 全绿（上轮 68 → +9）。
+- 未改 Rust，无 cargo 步骤。
+
+### 仍需人工确认（GUI 实机，§1.4 验收）
+
+- Alt+↑/↓ = 重排、Shift+Tab = 左缩进、Mod+Enter = 根节点居中、Ctrl+Shift+Z = 重做；
+  英文界面新节点默认文案显示 "New node"。
+
+### 审核师补遗（与本记录合并）
+
+- 修复者提交时 `command.pasteNode` 键在 8 个 locale 文件中均缺失（`store.pasteNode` /
+  `cutNode` 仍以此为命令名入栈）。本批审核中发现并补齐：8 个 locale 的 `command` 分组
+  各新增 `pasteNode`（zh-CN `粘贴节点` / en `Paste node` / zh-TW `貼上節點` /
+  de `Knoten einfügen`）。补齐后 `pnpm verify` 仍全绿（65 / 77 tests，parity 0）。
+- 上文测试数 65 / 77 已包含此项补遗；本批亦同此口径。
+- 本批未覆盖 P2-3（ShortcutsView scope 分组占位，可选），按"有意不处理"立场。
+
+本项状态：**完成（代码 + 两端 verify）**，键盘与文案 GUI 点验待用户进行。
+
+---
+
+## C3 完成记录（2026-09-06，第二批）
+
+按 `NEXT-PLAN.md §2 C3` 让 ShortcutsView 不再长期空许 `selectAll`/`bold`/`italic`/`newline`/
+`dblClickSpace`；同时处理 `layoutInOrder`(Mod+0) 与 `placeRoot`(Mod+Enter) 的重复，
+保留 `placeRoot`（语义更准）。
+
+### 目标一句话
+
+把仍未实现的快捷键项的文案统一为"规划中"，删去与 `placeRoot` 冲突的 `layoutInOrder`，
+并补齐 `shortcut.indent`/`shortcut.outdent`/`shortcut.statusPlanned` 三组 i18n 键
+（其中 `indent`/`outdent` 在 CODE_REVIEW Round 3 报告里声称已补，但实际 8 个 locale
+均仍缺，本轮一并补齐）。
+
+### 修改文件清单
+
+- `mindmap-vue3/src/core/shortcuts.ts` + `tauri-spike/src/core/shortcuts.ts`（parity 共享）：
+  - `selectAll`/`bold`/`italic`/`newline`/`dblClickSpace` 五项的 `descKey` 由各自独立键
+    （`shortcut.selectAll` 等）改为统一指向 `shortcut.statusPlanned`（"规划中"）；
+    `status` 字段保持 `'todo'`，由 `ShortcutsView` 既有 todo 渲染逻辑灰显。
+  - 删除 `layoutInOrder` entry（保留 `placeRoot`）。
+- 两端各 4 个 `src/i18n/locales/{zh-CN,en,zh-TW,de}.json`：
+  - `shortcut` 分组补 `indent`/`outdent`/`statusPlanned` 三键；
+  - 删除 `layoutInOrder` 键（避免死键）。
+  - 文案：
+    | key | zh-CN | en | zh-TW | de |
+    |---|---|---|---|---|
+    | `shortcut.indent` | 向右缩进 | Indent | 向右縮排 | Einrücken |
+    | `shortcut.outdent` | 向左缩进 | Outdent | 向左縮排 | Rückgängig machen |
+    | `shortcut.statusPlanned` | 规划中 | Planned | 規劃中 | Geplant |
+- `mindmap-vue3/src/tests/shortcuts.spec.ts` + `tauri-spike/src/tests/shortcuts.spec.ts`：
+  - mock i18n messages 同步增加 `statusPlanned`，删除 `layoutInOrder`；
+  - 新增用例 `every registry descKey resolves to a non-key text (no "shortcut.xxx" leak)`：
+    遍历 `SHORTCUT_REGISTRY` 每一个 entry 渲染的 `th` 文本，断言不包含原始 key 字符串
+    （防止再次出现 "shortcut.layoutInOrder" 之类回退）；同时断言 `layoutInOrder`
+    已从 registry 移除、HTML 不再含旧文案。
+
+### 验证结果（两端 test 数）
+
+- parity：`PARITY OK`（34 shared / 0 mismatch）。
+- Web `mindmap-vue3` `pnpm verify`：**65 tests（10 files）** 全绿（Round 3 = 64 → +1）。
+- Tauri `tauri-spike` `pnpm verify`：**77 tests（10 files）** 全绿（Round 3 = 76 → +1）。
+
+### 仍需人工确认（GUI 实机）
+
+- 在 ShortcutsView 切换四种语言，确认 `selectAll`/`bold`/`italic`/`newline`/`dblClickSpace`
+  行均显示"规划中/Planned/規劃中/Geplant"，`indent`/`outdent` 行显示本地化缩进文案；
+  `layoutInOrder` 行不再出现。
+
+### P2-3 决定（本轮）
+
+`P2-3`（ShortcutsView scope 分组占位）继续按"可选未做"立场处理：registry 化后 scope
+分组只剩 `dblClickSpace` 一项（已统一为 `statusPlanned`），非键盘手势（拖动/滚轮/
+触摸板）建议未来以非快捷键说明块呈现。本轮不改动，避免在 `todo`/`planned` 措辞间来回反复。
+
+本项状态：**完成（代码 + 两端 verify）**，语言切换点验待用户进行。
+
+
 
 

@@ -2,8 +2,8 @@
 
 All notable changes to **DesktopNaotu Web** are documented in this file.
 
-Format follows [Keep a Changelog](https://keepachangelog.com/),
-versioning follows [Semantic Versioning](https://semver.org/).
+Format follows [Keep a Changelog](https://keepachangelog.com/), versioning
+follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
@@ -43,5 +43,5 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [0.0.1] - Spike (废弃)
 
-内部 spike 阶段，未发布 npm。
-仅供 commit history 参考，已被本 changelog 的"未发布"取代。
+内部 spike 阶段，未发布 npm。仅供 commit
+history 参考，已被本 changelog 的"未发布"取代。

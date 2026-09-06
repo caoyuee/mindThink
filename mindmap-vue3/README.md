@@ -10,7 +10,9 @@
 
 ## 1. 项目简介
 
-**DesktopNaotu Web** 是 [DesktopNaotu](https://github.com/NaoTu/DesktopNaotu) 的现代化重构版本。原始项目基于 Electron + AngularJS 1.x + kityminder（旧百度脑图内核），本次重构：
+**DesktopNaotu Web** 是 [DesktopNaotu](https://github.com/NaoTu/DesktopNaotu)
+的现代化重构版本。原始项目基于 Electron + AngularJS 1.x +
+kityminder（旧百度脑图内核），本次重构：
 
 - 前端框架: AngularJS 1.x → Vue 3（Composition API + `<script setup>`）
 - 脑图渲染: kityminder-editor → markmap（轻量、Markdown 原生）
@@ -46,12 +48,12 @@ pnpm verify            # typecheck + lint + format + test
 
 ### 必读文档
 
-| 文档 | 何时读 |
-|---|---|
-| [AGENTS.md](AGENTS.md) | 修改任何代码前（红线与分层约束） |
-| [CONVENTIONS.md](CONVENTIONS.md) | 写新代码前 |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | 修改跨模块代码前 |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | 提交 PR 前 |
+| 文档                               | 何时读                           |
+| ---------------------------------- | -------------------------------- |
+| [AGENTS.md](AGENTS.md)             | 修改任何代码前（红线与分层约束） |
+| [CONVENTIONS.md](CONVENTIONS.md)   | 写新代码前                       |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | 修改跨模块代码前                 |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | 提交 PR 前                       |
 
 ### 质量门禁
 
@@ -143,20 +145,20 @@ spike/mindmap-vue3/
 
 ## 6. 命令行
 
-| 命令 | 作用 |
-|---|---|
-| `pnpm dev` | 启动 dev server（端口 5180） |
-| `pnpm build` | 生产构建 |
-| `pnpm preview` | 预览生产构建 |
-| `pnpm typecheck` | vue-tsc 类型检查 |
-| `pnpm lint` | ESLint |
-| `pnpm lint:fix` | ESLint 自动修复 |
-| `pnpm format` | Prettier 自动格式化 |
-| `pnpm format:check` | Prettier 检查 |
-| `pnpm test` | Vitest 单元测试（单次） |
-| `pnpm test:watch` | Vitest 监听模式 |
-| `pnpm test:coverage` | Vitest + coverage |
-| `pnpm verify` | typecheck + lint + format + test |
+| 命令                 | 作用                             |
+| -------------------- | -------------------------------- |
+| `pnpm dev`           | 启动 dev server（端口 5180）     |
+| `pnpm build`         | 生产构建                         |
+| `pnpm preview`       | 预览生产构建                     |
+| `pnpm typecheck`     | vue-tsc 类型检查                 |
+| `pnpm lint`          | ESLint                           |
+| `pnpm lint:fix`      | ESLint 自动修复                  |
+| `pnpm format`        | Prettier 自动格式化              |
+| `pnpm format:check`  | Prettier 检查                    |
+| `pnpm test`          | Vitest 单元测试（单次）          |
+| `pnpm test:watch`    | Vitest 监听模式                  |
+| `pnpm test:coverage` | Vitest + coverage                |
+| `pnpm verify`        | typecheck + lint + format + test |
 
 ## 7. 路线图
 
