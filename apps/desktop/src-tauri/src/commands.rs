@@ -161,7 +161,11 @@ fn append_spec_item(
         MenuItemSpecJson::Role { role, label } => {
             submenu.append(&role_to_predefined(app, role, label)?)?;
         }
-        MenuItemSpecJson::Submenu { id: _, label, items } => {
+        MenuItemSpecJson::Submenu {
+            id: _,
+            label,
+            items,
+        } => {
             let inner = Submenu::new(app, label, true)?;
             for item in items {
                 append_spec_item(app, &inner, item)?;
@@ -318,10 +322,7 @@ pub async fn copy_file(
  * 仅扫描与源文件同名的备份，杜绝误匹配其它文件。
  */
 #[tauri::command]
-pub async fn list_backup_files(
-    app: tauri::AppHandle,
-    path: String,
-) -> AppResult<Vec<String>> {
+pub async fn list_backup_files(app: tauri::AppHandle, path: String) -> AppResult<Vec<String>> {
     let p = validate_path(&app, &path)?;
     let parent = p
         .parent()
