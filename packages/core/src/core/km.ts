@@ -41,7 +41,7 @@ export function fromKmJson(input: string): MindNode {
   try {
     parsed = JSON.parse(input) as unknown;
   } catch (error) {
-    throw new Error(`KM 文件不是有效 JSON: ${(error as Error).message}`);
+    throw new Error('KM 文件不是有效 JSON', { cause: error });
   }
   if (!isObject(parsed) || !isObject(parsed['root'])) {
     throw new Error('KM 文件缺少 root 节点');

@@ -66,7 +66,7 @@ jobs:
           fi
 
       # 不传 version：pnpm/action-setup 自动采用根 package.json 的
-      # "packageManager": "pnpm@9.15.9"，避免两处声明互相冲突
+      # "packageManager": "pnpm@12.18.0"，避免两处声明互相冲突
       # （Multiple versions of pnpm specified / ERR_PNPM_BAD_PM_VERSION）。
       - name: Setup pnpm
         uses: pnpm/action-setup@v4

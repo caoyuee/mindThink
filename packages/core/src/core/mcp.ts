@@ -50,7 +50,7 @@ export function decodeMcpMessage(line: string): McpRpcRequest | McpRpcResponse {
   try {
     value = JSON.parse(normalized) as unknown;
   } catch (error) {
-    throw new Error(`MCP 消息不是有效 JSON: ${(error as Error).message}`);
+    throw new Error('MCP 消息不是有效 JSON', { cause: error });
   }
   if (typeof value !== 'object' || value === null) throw new Error('MCP 消息必须是对象');
   const record = value as Record<string, unknown>;

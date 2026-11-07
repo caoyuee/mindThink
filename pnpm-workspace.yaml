@@ -6,3 +6,7 @@ packages:
 allowBuilds:
   esbuild: true
   vue-demi: true
+
+# 用户要求依赖升到最新版；关闭 pnpm 12 默认的 minimumReleaseAge
+# 供应链冷却期策略（默认拒绝安装 24h 内发布的包）
+minimumReleaseAge: 0
