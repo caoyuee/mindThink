@@ -14,9 +14,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # 不传 version：pnpm/action-setup 自动采用根 package.json 的
+      # "packageManager": "pnpm@9.15.9"，避免 Multiple versions of pnpm specified。
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - uses: actions/setup-node@v4
         with:
@@ -25,14 +25,6 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Approve build scripts (esbuild)
-        run: |
-          pnpm config set side-effects-cache false
-          # esbuild postinstall 必须跑，否则 binary 没下载
-          echo "esbuild" >> .pnpm-approve-builds
-          echo "vue-demi" >> .pnpm-approve-builds
-          pnpm install --frozen-lockfile
 
       - name: Type check
         run: pnpm typecheck
@@ -54,5 +46,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
-          path: coverage/
+          path: apps/*/coverage/
           retention-days: 7
