@@ -1,8 +1,17 @@
 # M0-6 实施方案：D3 monorepo 迁移（移动不改逻辑）
 
-> 状态：⏸️ **待用户确认后执行**（改动远超 200 行，按 AGENTS.md §6 先方案后动手）。
+> 状态：✅ **已执行完成**（2026-11-07，commit 9de706c；沙箱门禁全绿，本机验证清单见 HANDOFF）。
 > 依据：`docs/roadmap.md` M0-6 规格、`docs/decisions.md` D3、`scripts/check-frontend-parity.mjs` 实测基线。
 > 执行约定：**一次大 PR + 全量 verify**；parity 脚本退役；Rust 不动。
+>
+> 执行偏差记录（相对本方案）：
+> 1. 运行时依赖（vue/pinia/vue-i18n/vue-router/nanoid/markmap-view）在根 package.json 重复声明，
+>    且两 app 的 vite/vitest 增加 `resolve.dedupe` —— pnpm 严格隔离下 packages/* 源码解析会造出
+>    第二份 vue/pinia 实例（风险 #4 预判成真），dedupe 强制单实例。
+> 2. `@/components/panels/Toolbar.vue`、`@/components/layout/AppStatusBar.vue` 增加精确别名覆盖：
+>    这两个分歧组件被共享 EditorView 引用，vite 字符串别名需带 `.vue` 全名才能精确命中。
+> 3. 根 eslint ignores 补 `**/scripts/**`（Node 构建脚本非 webview 代码）；根 .prettierignore 补
+>    `**/src-tauri/`（保持 Rust 侧零 diff）与 `**/scripts/`。
 
 ## 0. 探索结论摘要（方案的事实基础）
 
