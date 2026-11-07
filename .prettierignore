@@ -1,0 +1,27 @@
+# Dependencies, build and test output
+node_modules/
+dist/
+coverage/
+.pnpm-store/
+pnpm-lock.yaml
+*.tsbuildinfo
+*.log
+*.timestamp-*.mjs
+
+# Tauri / Rust generated files
+**/src-tauri/target/
+**/src-tauri/gen/
+
+# legacy/ is a read-only historical snapshot; .workbuddy/ is local tooling state.
+legacy/
+.workbuddy/
+.Trash-0/
+
+# Historical Markdown docs stay untouched (reformatting would reflow large
+# Chinese prose blocks)
+*.md
+
+# Rust-side config: keep src-tauri diff strictly zero (red line); scripts/ is
+# Node build tooling (not webview code), both were outside the old check scope.
+**/src-tauri/
+**/scripts/

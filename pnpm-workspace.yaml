@@ -1,0 +1,8 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+# pnpm 10 构建脚本许可（自两树 pnpm-workspace.yaml 原样上收）
+allowBuilds:
+  esbuild: true
+  vue-demi: true

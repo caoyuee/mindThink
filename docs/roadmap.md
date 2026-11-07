@@ -18,10 +18,10 @@
 |---|---|---|---|---|
 | M0-1 | P0 GUI 实机回归（快捷键四组 + 节点交互 + 多窗口 destroy 权限） | 人工 | 无 | 🛑 |
 | M0-2 | 重打包正式安装包 `pnpm build:tauri` | 小 | M0-1 | 🛑 |
-| M0-3 | B3 自动备份保留策略与旧备份清理 | 中 | 无 | 🔵 |
-| M0-4 | B2 Recent Files 原生子菜单 | 中 | B1（已 done） | 🔵 |
-| M0-5 | B4 defSavePath 生效 + 日志落盘开关 | 中 | 无 | 🔵 |
-| M0-6 | D3 monorepo 合并（先移动不改逻辑） | 中-大 | D3 确认 | 🔵 |
+| M0-3 | B3 自动备份保留策略与旧备份清理 | 中 | 无 | ✅ |
+| M0-4 | B2 Recent Files 原生子菜单 | 中 | B1（已 done） | ✅ |
+| M0-5 | B4 defSavePath 生效 + 日志落盘开关 | 中 | 无 | ✅ |
+| M0-6 | D3 monorepo 合并（先移动不改逻辑） | 中-大 | D3 确认 | ✅ |
 
 ### M0-3 规格（B3 备份保留策略）
 
@@ -138,7 +138,7 @@
 
 1. **顺序**：里程碑内任务按依赖排；每完成一项立即收尾，不要攒批。
 2. **收尾**：在 `docs/archive/HANDOFF-<date>.md` 追加完成记录（目标/文件/验证/待人工）。
-3. **两端同步**：涉及共享前端文件必须 Web/Tauri 同步并分别 verify；`pnpm parity` 必过。
+3. **共享代码单份**（M0-6 后）：跨端共享源码在 `packages/` 物理单份，无同步负担；平台分歧文件（App.vue / core/file.ts / stores / locales / tests）分属各 app，改动无需同步。
 4. **质量门禁**：提交前 `pnpm verify` 全绿；Rust 改动加 cargo 四件套。
 5. **红线**：遵守根 `AGENTS.md`（命令栈全入口、内核收口、i18n、禁 alert/confirm、禁 Node API、错误不静默）。
 6. **不要做**：不删除 `legacy/`；不在 legacy 开发；不擅自杀用户运行中实例；不重打包 installer（除非明确要求）；不把「需人工 GUI 确认」标成已完成。

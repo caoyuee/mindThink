@@ -19,50 +19,51 @@ mindThink 是原 DesktopNaotu（桌面版脑图）的现代化重构项目。新
 | Web 前端 | Vue 3.5 + Pinia + Vite 6 + TypeScript strict |
 | 桌面壳 | Tauri 2.x（Rust 后端，安装包 <25MB） |
 | 脑图内核 | markmap 0.18（现状）→ **simple-mind-map**（规划，见 docs/decisions.md D1） |
-| 测试/质量 | Vitest + ESLint 9 + Prettier 3 + parity 护栏 + CI |
+| 测试/质量 | Vitest + ESLint 9 + Prettier 3 + CI（pnpm workspace monorepo） |
 | i18n | vue-i18n，4 语言（zh-CN / en / zh-TW / de） |
 
 ## 目录结构
 
 ```
-mindThink/
-├── README.md                    本文件（项目总入口）
-├── AGENTS.md                    统一开发规则（所有 AI Agent 必读）
-├── ROADMAP-2026-11-07.md        开发方向总体规划（六决策 + 六里程碑）
-├── docs/
-│   ├── architecture.md          目标架构与数据流
-│   ├── decisions.md             D1-D6 架构决策记录（ADR）
-│   ├── roadmap.md               可派工的路由图（任务级规格）
-│   └── archive/                 历史文档（HANDOFF/NEXT-PLAN/CODE_REVIEW 归档）
-├── mindmap-vue3/                Web 端（迭代开发主战场）
-├── tauri-spike/                 桌面端（Tauri 发布目标）
-├── legacy/                      原 Electron + kityminder 项目存档（只读参考）
-└── scripts/                     工程脚本（parity 护栏等）
+mindThink/                     pnpm workspace monorepo（D3）
+├── README.md                  本文件（项目总入口）
+├── AGENTS.md                  统一开发规则（所有 AI Agent 必读）
+├── ROADMAP-2026-11-07.md      开发方向总体规划（六决策 + 六里程碑）
+├── docs/                      架构 / 决策 / 路线图 / 归档
+├── apps/
+│   ├── web/                   Web 端（FS Access，迭代基线）
+│   └── desktop/               桌面端（Tauri 2.x 发布目标，src-tauri/ Rust）
+├── packages/
+│   ├── core/                  纯 TS 核心层（core 算法 + platform + types）
+│   ├── ui/                    共享 UI（组件 / 视图 / composables / router / styles）
+│   └── i18n/                  i18n 装配逻辑（locales 文案属平台分歧，留各 app）
+├── build/aliases.ts           `@/` 别名单一事实源（两 app 共用）
+└── legacy/                    原 Electron + kityminder 项目存档（只读参考）
 ```
 
 | 路径 | 用途 | 状态 |
 |---|---|---|
-| `mindmap-vue3/` | Web 端 | 0.1.0 alpha |
-| `tauri-spike/` | 桌面端 | 0.1.0 alpha（前端完整 / cargo 已部分验证） |
+| `apps/web/` | Web 端 | 0.1.0 alpha |
+| `apps/desktop/` | 桌面端 | 0.1.0 alpha（前端完整 / cargo 已部分验证） |
+| `packages/*` | 跨端共享源码 | 物理单份，漂移问题天然消失 |
 | `legacy/` | 原项目存档 | 📦 只读，不再维护 |
 
-## 两个工程的关系
+## 两个 app 的关系
 
 ```
-   ┌─────────────────────┐
-   │     mindmap-vue3     │   ← 迭代开发主战场（前端能力基线）
-   └──────────┬──────────┘
-              │ 源码复制（手工同步 + parity 护栏校验）
-              ▼
-   ┌─────────────────────┐
-   │     tauri-spike      │   ← 发布目标
-   │     ├─ Rust 后端     │
-   │     └─ 前端 + 适配   │
-   └─────────────────────┘
+   ┌──────────────────────────────────────────┐
+   │  packages/{core,ui,i18n}                 │  ← 共享源码（物理单份）
+   └────────────┬────────────────┬────────────┘
+                │ 别名缝合        │ 别名缝合
+   ┌────────────▼───┐   ┌────────▼───────────┐
+   │   apps/web      │   │   apps/desktop      │
+   │   (FS Access)   │   │   ├─ 平台分歧适配层  │
+   │                 │   │   └─ src-tauri Rust │
+   └─────────────────┘   └────────────────────┘
 ```
 
-> ⚠️ 当前为**双工程手工同步**，靠 `scripts/check-frontend-parity.mjs` 护栏防漂移。
-> 规划已决定合并为 **pnpm workspace monorepo**（见 docs/decisions.md D3），届时此结构作废。
+> 共享代码通过 `build/aliases.ts` 的 `@/` 别名映射进各 app（源码直引，无包构建链）；
+> 平台分歧文件（App.vue / core/file.ts / stores / locales / tests）物理留各 app。
 
 ## 文档导航（新开发 AI 必读顺序）
 
@@ -78,37 +79,33 @@ mindThink/
 ## 快速开始
 
 ```bash
+pnpm install               # 根目录一次安装全部 workspace
+
 # Web 端（纯浏览器）
-cd mindmap-vue3
-pnpm install
-pnpm dev               # http://localhost:5180
+pnpm dev:web               # http://localhost:5180
 
 # 桌面端
-cd tauri-spike
-pnpm install
-pnpm dev:tauri         # vite + Tauri 窗口
+pnpm dev:desktop           # vite + Tauri 窗口
 ```
-
-> 从 Git 仓库迁过来后 `node_modules` 失效（pnpm 硬链接指向旧路径），先 `rm -rf node_modules .pnpm-store pnpm-lock.yaml && pnpm install`。
 
 ## 质量门禁
 
-两端分别执行（任一失败不能合并）：
+根目录统一执行（任一失败不能合并）：
 
 ```bash
-pnpm verify   # parity + typecheck + lint + format:check + test
+pnpm verify   # 两 app typecheck + 根级 lint + format:check + 两 app test
 pnpm fix      # 本地一键修复：eslint --fix → prettier --write
 ```
 
 - **ESLint 9** 管代码规范与红线，**Prettier 3** 管排版；`eslint-config-prettier` 作为配置数组最后一项关闭所有冲突规则，两者不会互相覆盖。
-- 两端配置（`eslint.config.js` / `.prettierrc.json` / `.prettierignore` / `.editorconfig`）保持字节一致，改动必须双端同步；共享 `src/` 另有 parity 护栏。
+- 工具链配置（`eslint.config.js` / `.prettierrc.json` / `.prettierignore` / `.editorconfig`）只在根目录一份，monorepo 下共享代码物理单份，无同步负担。
 - 源码统一 LF；生成物由 `.prettierignore` 排除，`legacy/` 为只读存档不纳入检查。
 - 完整规则见 `AGENTS.md` §10。
 
 Rust 侧：
 
 ```bash
-cd tauri-spike/src-tauri
+cd apps/desktop/src-tauri
 cargo fmt -- --check && cargo check && cargo test && cargo clippy --all-targets -- -D warnings
 ```
 

@@ -1,7 +1,9 @@
 # AGENTS.md — 面向 AI Agent 的统一项目规则
 
 > 本文件是 mindThink 全项目的开发规则基线，所有 AI 编程助手（Claude、GPT、Cursor、Trae 等）修改任何代码前必须通读。
-> 子工程 `mindmap-vue3/` 与 `tauri-spike/` 遵循本文件，各自仅补充平台特定规则。
+> 工程为 **pnpm workspace monorepo**（D3）：`apps/web`（Web）、`apps/desktop`（Tauri 桌面）两个 app，
+> 共享源码物理单份放 `packages/{core,ui,i18n}`，经 `build/aliases.ts` 的 `@/` 别名缝合；
+> 各 app 仅补充平台特定规则（见各自 AGENTS.md）。
 > 对「红线」或「分层」的修改必须先在对话中说明理由。
 
 ## 0. 项目背景
@@ -26,11 +28,11 @@
 
 ### 1.2 架构分层红线
 
-4. **禁止在 `core/` 下写 Vue 组件**：核心层保持纯 TS，零 Vue 依赖，可独立测试。
+4. **禁止在 `core/` 下写 Vue 组件**：核心层（`packages/core`）保持纯 TS，零 Vue 依赖，可独立测试。
 5. **脑图内核集成必须收口**：
-   - 现状（markmap）：类型只经 `src/types/markmap.d.ts`；`Markmap.create()`/`mm.setData()` 只允许在 `components/editor/MindEditor.vue`。
-   - 规划（simple-mind-map）：新增 `core/renderer-bridge.ts` 适配层，内核只能出现在 `MindEditor.vue` + renderer-bridge 两处。
-6. **文件 IO 只经 `core/file.ts`**：禁止组件/store 直接 `fs`/`invoke`；类型签名保持 `Promise<T>`，Web（FS Access）/ Tauri（invoke）实现可替换。
+   - 现状（markmap）：类型只经 `packages/core/src/types/markmap.d.ts`；`Markmap.create()`/`mm.setData()` 只允许在 `packages/ui/src/components/editor/MindEditor.vue`。
+   - 规划（simple-mind-map）：新增 `packages/core/src/core/renderer-bridge.ts` 适配层，内核只能出现在 `MindEditor.vue` + renderer-bridge 两处。
+6. **文件 IO 只经 `core/file.ts`**（各 app 的平台分歧实现）：禁止组件/store 直接 `fs`/`invoke`；类型签名保持 `Promise<T>`，Web（FS Access）/ Tauri（invoke）实现可替换。
 
 ### 1.3 安全与健壮性红线
 
@@ -40,7 +42,7 @@
 10. **API key 不得落盘为明文**：不得写入 config JSON、日志、MCP context；桌面端远期迁 OS keyring（见 docs/decisions.md D4 相关 C2）。
 11. **MCP 写操作必须走 ops 校验 + diff 批准**（见 docs/decisions.md D5）：外部写链路默认 fail-closed。
 
-### 1.4 Tauri 特定红线（tauri-spike/ 内）
+### 1.4 Tauri 特定红线（apps/desktop/src-tauri/ 内）
 
 12. **Rust 命令必须 `async` + 返回 `AppResult<T>`**，禁止 `unwrap()`/`expect()` 于生产路径。
 13. **新增 Tauri 命令三件套**：`commands.rs` 定义 → `lib.rs` 的 `generate_handler![]` 注册 → `capabilities/default.json` 加权限（如需要）。
@@ -48,47 +50,47 @@
 
 ## 2. 架构分层（强制）
 
+分层在 monorepo 下的物理落点：**共享层在 `packages/`，平台分歧层在各 app 的 `src/`**。
+
 ```
-┌──────────────────────────────────────────────────┐
-│ Views (src/views/*.vue)                          │  ← 路由级页面
-├──────────────────────────────────────────────────┤
-│ Components                                       │
-│ ├─ layout/    顶栏/底栏/AppShell                  │
-│ ├─ editor/    脑图内核集成（+ renderer-bridge）    │
-│ ├─ panels/    侧栏/工具栏/上下文面板               │
-│ ├─ dialogs/   模态对话框                          │
-│ └─ common/    Toast/Button 等原子组件             │
-├──────────────────────────────────────────────────┤
-│ Stores (src/stores/*.ts)                         │  ← 状态、命令栈、对外 actions
-├──────────────────────────────────────────────────┤
-│ Composables (src/composables/*.ts)               │  ← 复用 hook
-├──────────────────────────────────────────────────┤
-│ Core (src/core/*.ts)                             │  ← 纯函数，无副作用，可测试
-├──────────────────────────────────────────────────┤
-│ Types (src/types/*.ts)                           │  ← 类型定义，不放实现
-└──────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────┐
+│ 各 app src/（平台分歧）：App.vue / main.ts / core/file.ts    │
+│   / stores/{config,mindmap}.ts / i18n/locales / tests       │
+├────────────────────────────────────────────────────────────┤
+│ packages/ui  Views/Components/Composables/router/ui store   │  ← 共享
+├────────────────────────────────────────────────────────────┤
+│ packages/core  Core（core/*.ts + platform.ts）              │  ← 共享，纯 TS 零 Vue
+├────────────────────────────────────────────────────────────┤
+│ packages/core/src/types  类型定义，不放实现                   │  ← 最底层
+└────────────────────────────────────────────────────────────┘
 ```
 
 **依赖方向**：上层可调下层，下层不可调上层。
 `views → components → (stores, composables) → core → types`；`core` 只可调 `types`；`types` 不调任何。
+已知例外（经别名缝合，为现状接受）：packages/ui 内组件通过 `@/` 引用各 app 的
+`stores/mindmap`、`stores/config`、`core/file`（平台分歧层）——升级为严格包边界
+（注册式注入）是后续重构项，新增代码不要扩大此类反向依赖。
 
 ## 3. 修改决策树
 
+> 路径规则：跨端共享的落点在 `packages/`，平台分歧的落点在 `apps/<web|desktop>/src/`。
+
 | 场景 | 落点 |
 |---|---|
-| 新增脑图节点操作（增删改） | `stores/mindmap.ts` 的 actions |
-| 新增树形算法（找路径、遍历） | `core/tree.ts` |
-| 新增命令（可撤销操作） | `core/commands.ts` |
-| 新增 AI 结构化操作（op） | `core/ai-ops.ts`（schema + 校验） |
-| 新增文件 IO（导出 PNG/JSON/mmap） | `core/file.ts` |
-| 脑图内核数据模型转换 | `core/renderer-bridge.ts` |
-| 新增 UI 控件 | `components/{layout,editor,panels,dialogs,common}/` |
-| 新增路由页面 | `views/<Name>.vue` + `router/index.ts` |
-| 新增全局 hook | `composables/` |
-| 新增类型/接口 | `types/` 下按域拆分 |
+| 新增脑图节点操作（增删改） | `apps/*/src/stores/mindmap.ts` 的 actions（平台分歧，两端分别实现） |
+| 新增树形算法（找路径、遍历） | `packages/core/src/core/tree.ts` |
+| 新增命令（可撤销操作） | `packages/core/src/core/commands.ts` |
+| 新增 AI 结构化操作（op） | `packages/core/src/core/ai-ops.ts`（schema + 校验） |
+| 新增文件 IO（导出 PNG/JSON/mmap） | 各 app 的 `src/core/file.ts`（接口共享，实现分歧） |
+| 脑图内核数据模型转换 | `packages/core/src/core/renderer-bridge.ts` |
+| 新增共享 UI 控件 | `packages/ui/src/components/{layout,editor,panels,dialogs,common}/` |
+| 新增路由页面 | `packages/ui/src/views/<Name>.vue` + `packages/ui/src/router/index.ts` |
+| 新增全局 hook（共享） | `packages/ui/src/composables/` |
+| 新增类型/接口 | `packages/core/src/types/` 下按域拆分 |
 | 修改脑图内核集成 | **只改 `MindEditor.vue` + `renderer-bridge.ts`** |
-| 修改主题颜色/间距 | 只改 `styles/global.css` 的 CSS 变量 |
-| 翻译文本 | `i18n/locales/*.json` |
+| 修改主题颜色/间距 | 只改 `packages/ui/src/styles/global.css` 的 CSS 变量 |
+| 翻译文本 | `apps/*/src/i18n/locales/*.json`（两端文案允许平台差异，同步维护） |
+| `@/` 别名规则调整 | 只改 `build/aliases.ts` + 两 app tsconfig paths（保持同构） |
 
 ## 4. 国际化（i18n）
 
@@ -109,9 +111,10 @@
 - 每个 agent 修改前先 `git pull` 拉最新。
 - **改动 >200 行**必须先给方案，等待确认。
 - **改动跨模块**（涉及 `core/` 或 `stores/`）必须先说明影响范围。
-- **不允许跳过质量门禁**：提交前必须 `pnpm verify` 通过。
+- **不允许跳过质量门禁**：提交前必须根目录 `pnpm verify` 通过。
 - **不允许提交** `node_modules/`、`dist/`、`*.log`、`*.local`、`coverage/`、`src-tauri/target/`。
-- **两端同步**：涉及共享前端文件的改动必须 Web/Tauri 同步并分别 verify；`pnpm parity` 必过；发现意外漂移立即分类处理。
+- **共享代码物理单份**（packages/）：monorepo 后不存在双副本漂移问题；平台分歧文件
+  （App.vue / core/file.ts / stores / locales / tests）本就分属各 app，改动无需同步。
 
 ## 7. 调试规范
 
@@ -134,14 +137,14 @@
 ## 9. 提交前自查清单
 
 ```bash
-pnpm typecheck       # 必过
-pnpm lint            # 必过
+pnpm typecheck       # 必过（根目录聚合两 app，vue-tsc 连带覆盖全部 packages 源码）
+pnpm lint            # 必过（根目录 eslint 一把梭 apps + packages + build）
 pnpm format:check    # 必过
-pnpm test            # 必过
+pnpm test            # 必过（两 app vitest）
 # 等价命令：pnpm verify
 
-# Rust（改动 src-tauri/ 时）
-cd tauri-spike/src-tauri
+# Rust（改动 apps/desktop/src-tauri/ 时）
+cd apps/desktop/src-tauri
 cargo fmt -- --check && cargo check && cargo test && cargo clippy --all-targets -- -D warnings
 ```
 
@@ -149,10 +152,9 @@ cargo fmt -- --check && cargo check && cargo test && cargo clippy --all-targets 
 
 ## 10. 代码规范与格式化（ESLint × Prettier）
 
-两端工程（`mindmap-vue3/`、`tauri-spike/`）各持有一套**字节一致**的配置：
-`eslint.config.js`、`.prettierrc.json`、`.prettierignore`、`.editorconfig`。
-共享的 `src/` 由 parity 护栏约束，规则一旦漂移就会出现「一端过、一端挂」，
-**任何配置改动必须双端同步**。
+工具链配置（`eslint.config.js`、`.prettierrc.json`、`.prettierignore`、`.editorconfig`）
+**只在仓库根一份**（M0-6 起）。monorepo 下共享源码物理单份（`packages/`），
+不存在「双副本漂移」，配置与代码都无同步负担。
 
 | 工具 | 职责 |
 |---|---|
@@ -168,11 +170,11 @@ cargo fmt -- --check && cargo check && cargo test && cargo clippy --all-targets 
 **修复顺序**：先 ESLint、后 Prettier——`pnpm fix`（= `pnpm lint:fix && pnpm format`）。
 `pnpm verify` 中 `lint` 与 `format:check` 都必须通过。
 
-**覆盖范围**：各工程 `src/**/*.{ts,vue,css,json}` 与根目录 `*.{ts,js,json}`
-（含 vite/vitest/eslint 配置、package.json、tsconfig.json）。
+**覆盖范围**：`apps/**`、`packages/**`、`build/**` 的 `src/**/*.{ts,vue,css,json}`
+与根目录 `*.{ts,js,json}`（含 vite/vitest/eslint 配置、package.json、tsconfig.json）。
 `.prettierignore` 排除依赖、构建产物、lock、`*.tsbuildinfo`、
 Vite 临时配置 `*.timestamp-*.mjs` 与历史 Markdown。
-仓库根的 `docs/`、`scripts/` 与只读存档 `legacy/` 不纳入自动检查。
+只读存档 `legacy/` 与本地工具目录 `.workbuddy/` 不纳入自动检查。
 
 **换行**：统一 LF（`.editorconfig` + `.prettierrc.json` + `.gitattributes`），
 历史 CRLF 存量已一次性迁移完成。新文件由编辑器按 `.editorconfig` 写入 LF。
@@ -184,4 +186,4 @@ Vite 临时配置 `*.timestamp-*.mjs` 与历史 Markdown。
 | `pnpm format` | 按 Prettier 写入（含统一 LF） |
 | `pnpm format:check` | 只查格式，不写文件 |
 | `pnpm fix` | 一键：先 lint:fix，再 format |
-| `pnpm verify` | 完整门禁：parity + typecheck + lint + format:check + test |
+| `pnpm verify` | 完整门禁：两 app typecheck + lint + format:check + 两 app test |

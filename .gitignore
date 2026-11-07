@@ -3,10 +3,27 @@ target-verify/
 node_modules/
 bower_components/
 dist/
+coverage/
 OutApp/
 .electron/
 package-lock.json
 *.log
 *.timestamp-*.mjs
+*.tsbuildinfo
+*.local
+.eslintcache
+.env
+.env.local
+**/src-tauri/target/
+**/src-tauri/gen/
+**/src-tauri/.cargo/
 .Trash-0/
 .workbuddy/
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
