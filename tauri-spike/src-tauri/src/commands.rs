@@ -93,6 +93,11 @@ enum MenuItemSpecJson {
         role: MenuRoleJson,
         label: String,
     },
+    Submenu {
+        id: String,
+        label: String,
+        items: Vec<MenuItemSpecJson>,
+    },
 }
 
 /// Native/predefined menu roles. Kept as roles so Tauri preserves the native
@@ -155,6 +160,13 @@ fn append_spec_item(
         }
         MenuItemSpecJson::Role { role, label } => {
             submenu.append(&role_to_predefined(app, role, label)?)?;
+        }
+        MenuItemSpecJson::Submenu { id: _, label, items } => {
+            let inner = Submenu::new(app, label, true)?;
+            for item in items {
+                append_spec_item(app, &inner, item)?;
+            }
+            submenu.append(&inner)?;
         }
     }
     Ok(())
@@ -254,6 +266,30 @@ pub async fn write_text_file(
 }
 
 /**
+ * 追加文本到文件末尾（用于日志等）。目标文件不存在时创建，父目录不存在时创建。
+ * 路径同样受 validate_path 约束（仅允许家目录/文档/下载/桌面/应用数据等）。
+ */
+#[tauri::command]
+pub async fn append_text_file(
+    app: tauri::AppHandle,
+    path: String,
+    content: String,
+) -> AppResult<()> {
+    let p = validate_path(&app, &path)?;
+    if let Some(parent) = p.parent() {
+        tokio::fs::create_dir_all(parent).await?;
+    }
+    use tokio::io::AsyncWriteExt;
+    let mut file = tokio::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&p)
+        .await?;
+    file.write_all(content.as_bytes()).await?;
+    Ok(())
+}
+
+/**
  * 检查文件是否存在
  */
 #[tauri::command]
@@ -274,6 +310,62 @@ pub async fn copy_file(
     let source_path = validate_path(&app, &source)?;
     let destination_path = validate_path(&app, &destination)?;
     tokio::fs::copy(source_path, destination_path).await?;
+    Ok(())
+}
+
+/**
+ * 列出某文件的全部备份（`<原名>.backup-*`），按时间降序（最新在前）。
+ * 仅扫描与源文件同名的备份，杜绝误匹配其它文件。
+ */
+#[tauri::command]
+pub async fn list_backup_files(
+    app: tauri::AppHandle,
+    path: String,
+) -> AppResult<Vec<String>> {
+    let p = validate_path(&app, &path)?;
+    let parent = p
+        .parent()
+        .ok_or_else(|| AppError::InvalidArgument("路径无父目录".to_string()))?;
+    let original = p
+        .file_name()
+        .ok_or_else(|| AppError::InvalidArgument("路径无文件名".to_string()))?
+        .to_string_lossy()
+        .to_string();
+    let prefix = format!("{original}.backup-");
+    let mut entries: Vec<String> = Vec::new();
+    let mut dir = tokio::fs::read_dir(&parent).await?;
+    while let Some(entry) = dir.next_entry().await? {
+        let fname = entry.file_name().to_string_lossy().to_string();
+        if fname.starts_with(&prefix) {
+            entries.push(entry.path().to_string_lossy().to_string());
+        }
+    }
+    entries.sort();
+    entries.reverse();
+    Ok(entries)
+}
+
+/**
+ * 删除给定路径的文件。红线：仅允许删除 `.backup-*` 命名的备份文件，杜绝误删。
+ * 路径不存在时跳过（视为已清理）。
+ */
+#[tauri::command]
+pub async fn delete_files(app: tauri::AppHandle, paths: Vec<String>) -> AppResult<()> {
+    for path in paths {
+        let p = validate_path(&app, &path)?;
+        let fname = p
+            .file_name()
+            .map(|f| f.to_string_lossy().to_string())
+            .unwrap_or_default();
+        if !fname.contains(".backup-") {
+            return Err(AppError::InvalidArgument(format!(
+                "只允许删除备份文件: {path}"
+            )));
+        }
+        if tokio::fs::try_exists(&p).await? {
+            tokio::fs::remove_file(&p).await?;
+        }
+    }
     Ok(())
 }
 
@@ -561,6 +653,11 @@ mod tests {
                 { "label": "File", "items": [
                     { "kind": "custom", "id": "new", "label": "New", "accelerator": "CmdOrCtrl+N" },
                     { "kind": "custom", "id": "open", "label": "Open…" },
+                    { "kind": "submenu", "id": "open-recent", "label": "Open Recent", "items": [
+                        { "kind": "custom", "id": "recent:/a/b.md", "label": "b.md" },
+                        { "kind": "separator" },
+                        { "kind": "custom", "id": "recent-clear", "label": "Clear recent" }
+                    ]},
                     { "kind": "custom", "id": "save", "label": "Save", "accelerator": "CmdOrCtrl+S" }
                 ]},
                 { "label": "Edit", "items": [
@@ -574,7 +671,7 @@ mod tests {
 
         let file = &spec.submenus[1];
         assert_eq!(file.label, "File");
-        assert_eq!(file.items.len(), 3);
+        assert_eq!(file.items.len(), 4);
         match &file.items[0] {
             super::MenuItemSpecJson::Custom {
                 id, accelerator, ..
@@ -589,6 +686,20 @@ mod tests {
         match &file.items[1] {
             super::MenuItemSpecJson::Custom { accelerator, .. } => assert!(accelerator.is_none()),
             other => panic!("expected a custom item, got {other:?}"),
+        }
+
+        // Nested submenu (Open Recent) parses its children recursively.
+        match &file.items[2] {
+            super::MenuItemSpecJson::Submenu { id, label, items } => {
+                assert_eq!(id, "open-recent");
+                assert_eq!(label, "Open Recent");
+                assert_eq!(items.len(), 3);
+                match &items[0] {
+                    super::MenuItemSpecJson::Custom { id, .. } => assert_eq!(id, "recent:/a/b.md"),
+                    other => panic!("expected a custom item, got {other:?}"),
+                }
+            }
+            other => panic!("expected a submenu item, got {other:?}"),
         }
 
         // Roles preserve their enum + label.

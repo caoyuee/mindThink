@@ -1,8 +1,13 @@
 /**
- * 平台检测
+ * 平台检测与平台能力分发
  *
  * 同时支持浏览器(纯 web)和 Tauri(桌面)两种运行模式。
  * 在 Tauri 中, window.__TAURI_INTERNALS__ 会被自动注入。
+ *
+ * 本文件是 Web + Tauri 共享模块（必须两端字节一致）。为遵守 parity 约束，
+ * 共享文件不得 import 任何 tauri-only 模块（如 @tauri-apps/api）。因此平台
+ * 专属能力（目录选择等）采用"注册式分发"：共享层只声明接口，具体实现由
+ * tauri 端在运行时注册（Web 端不注册即 no-op）。
  */
 
 export type Platform = 'web' | 'tauri' | 'unknown';
@@ -24,4 +29,26 @@ export function detectPlatform(): Platform {
 
 export function isTauri(): boolean {
   return detectPlatform() === 'tauri';
+}
+
+/**
+ * 目录选择能力（注册式分发）。
+ *
+ * - Web 端不注册实现 → chooseDirectory() 永远返回 null，绝不伪造路径能力
+ *   （满足 AGENTS.md 红线：Web 不伪造本地路径能力）。
+ * - Tauri 端在 App.vue 注册实现，调用原生目录选择对话框。
+ */
+type DirPicker = () => Promise<string | null>;
+
+let dirPicker: DirPicker | null = null;
+
+/** 注册平台专属的目录选择器实现（传 null 清空）。 */
+export function registerDirPicker(fn: DirPicker | null): void {
+  dirPicker = fn;
+}
+
+/** 弹出目录选择对话框，返回所选绝对路径或 null（取消 / 平台不支持）。 */
+export async function chooseDirectory(): Promise<string | null> {
+  if (dirPicker) return dirPicker();
+  return null;
 }

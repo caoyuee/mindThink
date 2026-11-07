@@ -3,24 +3,73 @@ import tsParser from '@typescript-eslint/parser';
 import tsPlugin from '@typescript-eslint/eslint-plugin';
 import vueParser from 'vue-eslint-parser';
 import vuePlugin from 'eslint-plugin-vue';
+// eslint-config-prettier v9 exports a plain { rules } object, which is a valid
+// flat-config entry. It MUST remain the LAST item: it switches off every ESLint
+// rule that would fight Prettier (quotes / semi / indent / comma-dangle / ...).
+// Formatting is a separate step (`pnpm format` / `pnpm format:check`), which is
+// Prettier's officially recommended setup - no eslint-plugin-prettier, no fix
+// loops. `pnpm fix` runs ESLint first and Prettier last so the two never undo
+// each other's work.
+// NOTE: keep this file byte-identical to tauri-spike/eslint.config.js. The two
+// projects share src/ (guarded by scripts/check-frontend-parity.mjs), so their
+// lint rules must not drift apart.
 import prettier from 'eslint-config-prettier';
 
+const BROWSER_GLOBALS = {
+  window: 'readonly',
+  document: 'readonly',
+  console: 'readonly',
+  navigator: 'readonly',
+  location: 'readonly',
+  history: 'readonly',
+  localStorage: 'readonly',
+  sessionStorage: 'readonly',
+  fetch: 'readonly',
+  URL: 'readonly',
+  URLSearchParams: 'readonly',
+  Blob: 'readonly',
+  File: 'readonly',
+  FormData: 'readonly',
+  AbortController: 'readonly',
+  HTMLElement: 'readonly',
+  HTMLInputElement: 'readonly',
+  SVGSVGElement: 'readonly',
+  SVGGElement: 'readonly',
+  Element: 'readonly',
+  MouseEvent: 'readonly',
+  Event: 'readonly',
+  EventTarget: 'readonly',
+  KeyboardEvent: 'readonly',
+  setTimeout: 'readonly',
+  clearTimeout: 'readonly',
+  setInterval: 'readonly',
+  clearInterval: 'readonly',
+  Promise: 'readonly',
+};
+
 export default [
-  // 忽略
+  // Generated files / dependencies / read-only artefacts
   {
     ignores: [
       'node_modules/**',
       'dist/**',
+      'coverage/**',
       '.pnpm-store/**',
-      '*.log',
       'pnpm-lock.yaml',
+      '*.tsbuildinfo',
+      '*.log',
+      // Vite / Vitest transient config files (vitest.config.ts.timestamp-*.mjs)
+      '*.timestamp-*.mjs',
+      'src-tauri/target/**',
+      'src-tauri/gen/**',
+      'scripts/**',
     ],
   },
 
-  // 基础 JS 规则
+  // Baseline JS rules
   js.configs.recommended,
 
-  // TypeScript 规则
+  // TypeScript rules
   {
     files: ['**/*.ts'],
     languageOptions: {
@@ -30,38 +79,7 @@ export default [
         sourceType: 'module',
         project: './tsconfig.json',
       },
-      globals: {
-        // 浏览器全局对象
-        window: 'readonly',
-        document: 'readonly',
-        console: 'readonly',
-        navigator: 'readonly',
-        location: 'readonly',
-        history: 'readonly',
-        localStorage: 'readonly',
-        sessionStorage: 'readonly',
-        fetch: 'readonly',
-        URL: 'readonly',
-        URLSearchParams: 'readonly',
-        Blob: 'readonly',
-        File: 'readonly',
-        FormData: 'readonly',
-        AbortController: 'readonly',
-        HTMLElement: 'readonly',
-        HTMLInputElement: 'readonly',
-        SVGSVGElement: 'readonly',
-        SVGGElement: 'readonly',
-        Element: 'readonly',
-        MouseEvent: 'readonly',
-        Event: 'readonly',
-        EventTarget: 'readonly',
-        KeyboardEvent: 'readonly',
-        setTimeout: 'readonly',
-        clearTimeout: 'readonly',
-        setInterval: 'readonly',
-        clearInterval: 'readonly',
-        Promise: 'readonly',
-      },
+      globals: BROWSER_GLOBALS,
     },
     plugins: {
       '@typescript-eslint': tsPlugin,
@@ -69,14 +87,27 @@ export default [
     rules: {
       ...tsPlugin.configs.recommended.rules,
 
-      // === AGENTS.md 红线规则化 ===
-      // 1.1 禁止 Node API
+      // TypeScript itself checks undefined identifiers; ESLint's no-undef
+      // produces false positives on TS-only globals and types.
+      'no-undef': 'off',
+
+      // === AGENTS.md red lines, enforced by lint ===
+      // 1.1 No Node APIs in the webview render layer
       'no-restricted-imports': [
         'error',
         {
           patterns: [
             {
-              group: ['fs', 'node:fs', 'path', 'node:path', 'child_process', 'node:child_process', 'buffer', 'node:buffer'],
+              group: [
+                'fs',
+                'node:fs',
+                'path',
+                'node:path',
+                'child_process',
+                'node:child_process',
+                'buffer',
+                'node:buffer',
+              ],
               message: 'AGENTS.md 1.1: 禁止在 webview 渲染层使用 Node API。文件操作走 core/file.ts',
             },
           ],
@@ -93,11 +124,11 @@ export default [
         'exports',
       ],
 
-      // 1.6 禁止全局副作用
+      // 1.6 No implicit global side effects
       'no-global-assign': 'error',
       'no-implicit-globals': 'error',
 
-      // === 通用 TypeScript 规则 ===
+      // General TypeScript rules
       '@typescript-eslint/no-unused-vars': [
         'error',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
@@ -109,17 +140,12 @@ export default [
       ],
       '@typescript-eslint/no-non-null-assertion': 'off',
 
-      // === 调试规范 ===
-      'no-console': [
-        'warn',
-        {
-          allow: ['error', 'warn', 'info', 'log'],
-        },
-      ],
+      // Debug hygiene (AGENTS.md 7); console.log still needs a // DEBUG: reason
+      'no-console': ['warn', { allow: ['error', 'warn', 'info', 'log'] }],
     },
   },
 
-  // Vue 规则
+  // Vue rules
   ...vuePlugin.configs['flat/recommended'].map((c) => ({
     ...c,
     files: ['**/*.vue'],
@@ -134,16 +160,17 @@ export default [
         sourceType: 'module',
         extraFileExtensions: ['.vue'],
       },
+      globals: BROWSER_GLOBALS,
     },
     rules: {
-      ...vuePlugin.configs['flat/recommended'][0].rules,
-      // Vue 3 + script setup 友好
+      // Vue 3 <script setup> friendly
+      'no-undef': 'off',
       'vue/multi-word-component-names': 'off',
       'vue/no-v-html': 'warn',
       'vue/require-default-prop': 'off',
     },
   },
 
-  // Prettier 兼容（关闭冲突规则）
+  // Prettier compatibility: disable conflicting ESLint rules (keep last!)
   prettier,
 ];

@@ -1,0 +1,17 @@
+# Dependencies, build and test output
+node_modules/
+dist/
+coverage/
+.pnpm-store/
+pnpm-lock.yaml
+*.tsbuildinfo
+*.log
+*.timestamp-*.mjs
+
+# Tauri / Rust generated files (desktop project only)
+src-tauri/target/
+src-tauri/gen/
+
+# Historical Markdown docs stay untouched (not part of the automated format check,
+# reformatting them would reflow large Chinese prose blocks)
+*.md

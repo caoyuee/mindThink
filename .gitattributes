@@ -1,0 +1,8 @@
+# Active projects: normalise to LF, matching .editorconfig and Prettier's
+# endOfLine: "lf". Only these two trees are affected, so root-level docs and
+# scripts keep whatever line endings they currently have.
+mindmap-vue3/** text=auto eol=lf
+tauri-spike/** text=auto eol=lf
+
+# legacy/ is a read-only historical snapshot: never rewrite its line endings.
+legacy/** -text

@@ -26,7 +26,7 @@ import { useConfigStore } from '@/stores/config';
 import { useToastStore } from '@/composables/useToast';
 import { useDialog } from '@/composables/useDialog';
 import { useI18n } from 'vue-i18n';
-import { detectPlatform } from '@/platform';
+import { detectPlatform, registerDirPicker } from '@/platform';
 import { fileApi } from '@/core/file';
 import {
   createMcpContext,
@@ -37,7 +37,8 @@ import {
 import { router } from '@/router';
 import { buildDocumentTitle } from '@/core/document-title';
 import { buildMenuSpec } from '@/core/menu-spec';
-import { tauriRebuildNativeMenu } from '@/core/tauri-file';
+import { tauriRebuildNativeMenu, tauriAppendLogLine, tauriOpenDialog } from '@/core/tauri-file';
+import { setLogSink } from '@/core/log-sink';
 import { logger } from '@/core/logger';
 
 const ui = useUiStore();
@@ -162,6 +163,19 @@ async function confirmDiscard(mindmap: ReturnType<typeof useMindmapStore>): Prom
 
 async function handleMenuEvent(id: string): Promise<void> {
   const mindmap = useMindmapStore();
+  // 原生「最近打开」子菜单交互：
+  // - `recent:<path>`：打开该路径（先确认是否丢弃未保存更改）
+  // - `recent-clear`：清空最近记录
+  // - `recent-none`：占位项，无操作
+  if (id.startsWith('recent:')) {
+    const path = id.slice('recent:'.length);
+    if (await confirmDiscard(mindmap)) await mindmap.openRecent(path);
+    return;
+  }
+  if (id === 'recent-clear') {
+    config.clearRecentFiles();
+    return;
+  }
   try {
     switch (id) {
       case 'new':
@@ -169,9 +183,6 @@ async function handleMenuEvent(id: string): Promise<void> {
         break;
       case 'open':
         if (await confirmDiscard(mindmap)) await mindmap.open();
-        break;
-      case 'open-recent':
-        await router.push('/editor');
         break;
       case 'new-window':
         if (platform === 'tauri') {
@@ -213,19 +224,36 @@ async function handleMenuEvent(id: string): Promise<void> {
   }
 }
 
-/** 按当前 UI 语言重建系统原生菜单(桌面端)。失败 toast, 不阻塞 UI。 */
+/** 按当前 UI 语言与最近文件列表重建系统原生菜单(桌面端)。失败 toast, 不阻塞 UI。 */
 function rebuildMenu(): void {
   if (platform !== 'tauri') return;
-  const spec = buildMenuSpec((key) => t(key));
+  const spec = buildMenuSpec((key) => t(key), config.userConfig.recentFiles);
   void tauriRebuildNativeMenu(spec).catch((error: unknown) => {
     toast.warn(`${t('toast.error')}: ${(error as Error).message}`);
   });
+}
+
+/** 节流重建原生菜单（最近文件变化可能高频触发，见 M0-4 规格 300ms）。 */
+let rebuildMenuTimer: number | undefined;
+function scheduleRebuildMenu(): void {
+  if (rebuildMenuTimer !== undefined) window.clearTimeout(rebuildMenuTimer);
+  rebuildMenuTimer = window.setTimeout(() => {
+    rebuildMenuTimer = undefined;
+    rebuildMenu();
+  }, 300);
 }
 
 watch(
   () => locale.value,
   () => {
     if (platform === 'tauri') rebuildMenu();
+  },
+);
+
+watch(
+  () => config.userConfig.recentFiles,
+  () => {
+    if (platform === 'tauri') scheduleRebuildMenu();
   },
 );
 
@@ -270,6 +298,23 @@ onMounted(async () => {
       toast.info(`${t('app.name')} v${version} (Tauri)`, 5000);
       // 覆盖 Rust 启动时的默认英文菜单, 让菜单跟随当前 UI 语言。
       rebuildMenu();
+
+      // 注册平台专属能力（共享模块使用注册式分发，Web 端不注册）。
+      registerDirPicker(async () => {
+        const selected = await tauriOpenDialog({
+          directory: true,
+          title: t('settings.chooseDir'),
+        });
+        return typeof selected === 'string' ? selected : null;
+      });
+      // 日志落盘 sink：仅当用户开启 ifSaveLogToDisk 时写盘（落盘内容不含 API key）。
+      setLogSink((_level, line) => {
+        if (config.userConfig.ifSaveLogToDisk) {
+          void tauriAppendLogLine(line).catch((error: unknown) => {
+            logger.warn('写日志到磁盘失败', error);
+          });
+        }
+      });
     } catch (e) {
       toast.warn(`${t('app.tauriStartupFailed')}: ${(e as Error).message}`);
     }

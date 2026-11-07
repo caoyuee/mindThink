@@ -20,6 +20,8 @@ export interface UserConfig {
   recentMaxNum: number;
   /** 最近打开的文件路径，最新的排在前面 */
   recentFiles: string[];
+  /** 备份文件保留份数（M0-3） */
+  backupKeepMax: number;
   /** OpenAI-compatible AI endpoint */
   aiEndpoint: string;
   /** AI model identifier */
@@ -32,9 +34,17 @@ const CONFIG_KEY = 'user.config';
 export const RECENT_FILES_MIN = 1;
 export const RECENT_FILES_MAX = 20;
 
+export const BACKUP_KEEP_MIN = 1;
+export const BACKUP_KEEP_MAX = 100;
+
 export function normalizeRecentMaxNum(value: unknown): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) return 5;
   return Math.min(RECENT_FILES_MAX, Math.max(RECENT_FILES_MIN, Math.round(value)));
+}
+
+export function normalizeBackupKeepMax(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 20;
+  return Math.min(BACKUP_KEEP_MAX, Math.max(BACKUP_KEEP_MIN, Math.round(value)));
 }
 
 const DEFAULT_CONFIG: UserConfig = {
@@ -43,6 +53,7 @@ const DEFAULT_CONFIG: UserConfig = {
   ifSaveLogToDisk: false,
   recentMaxNum: 5,
   recentFiles: [],
+  backupKeepMax: 20,
   aiEndpoint: '',
   aiModel: '',
   aiApiKey: '',
@@ -60,6 +71,7 @@ function loadConfig(): UserConfig {
       defSavePath: typeof parsed.defSavePath === 'string' ? parsed.defSavePath : '',
       ifSaveLogToDisk: typeof parsed.ifSaveLogToDisk === 'boolean' ? parsed.ifSaveLogToDisk : false,
       recentMaxNum: normalizeRecentMaxNum(parsed.recentMaxNum),
+      backupKeepMax: normalizeBackupKeepMax(parsed.backupKeepMax),
       aiEndpoint: typeof parsed.aiEndpoint === 'string' ? parsed.aiEndpoint : '',
       aiModel: typeof parsed.aiModel === 'string' ? parsed.aiModel : '',
       aiApiKey: typeof parsed.aiApiKey === 'string' ? parsed.aiApiKey : '',
@@ -96,6 +108,9 @@ export const useConfigStore = defineStore('config', () => {
       ...userConfig.value,
       ...partial,
       recentMaxNum,
+      backupKeepMax: normalizeBackupKeepMax(
+        partial.backupKeepMax ?? userConfig.value.backupKeepMax,
+      ),
       recentFiles: (partial.recentFiles ?? userConfig.value.recentFiles).slice(0, recentMaxNum),
     };
   }

@@ -12,6 +12,11 @@
  * items keep Tauri's native role semantics (About metadata / Quit / Edit roles /
  * Fullscreen); they are expressed as `{ kind: 'role' }` so the Rust side never
  * degrades them to plain text items.
+ *
+ * The "Open Recent" entry is a nested submenu whose children are the recent file
+ * paths (`recent:<path>` custom items, label = basename to keep menus short) plus
+ * a `recent-clear` action. When there are no recent files a disabled-style
+ * `recent-none` placeholder is emitted instead.
  */
 
 /** Allowed native (predefined) menu roles understood by the Rust command. */
@@ -25,7 +30,9 @@ export type MenuItemSpec =
   /** A visual separator. */
   | { kind: 'separator' }
   /** A Tauri native/predefined role item. */
-  | { kind: 'role'; role: MenuRole; label: string };
+  | { kind: 'role'; role: MenuRole; label: string }
+  /** A nested submenu (e.g. "Open Recent"); children are plain MenuItemSpec. */
+  | { kind: 'submenu'; id: string; label: string; items: MenuItemSpec[] };
 
 /** One top-level submenu (File / Edit / View / Help / app menu …). */
 export interface MenuSubmenuSpec {
@@ -63,10 +70,14 @@ export const MENU_LABEL_KEYS: readonly string[] = [
   'menu.selectAll',
   'menu.toggleDevtools',
   'menu.fullscreen',
+  'menu.clearRecent',
+  'menu.noRecent',
 ];
 
 /** Minimal translation resolver shape injected by the caller. */
 export type MenuTranslate = (key: string) => string;
+
+import { basename } from '@/core/backup';
 
 /**
  * Build the full native menu for the current locale.
@@ -75,7 +86,7 @@ export type MenuTranslate = (key: string) => string;
  * New = CmdOrCtrl+N, Open = CmdOrCtrl+O, Save = CmdOrCtrl+S,
  * toggle-devtools = CmdOrCtrl+Shift+D. File menu ends with a separator + Quit.
  */
-export function buildMenuSpec(t: MenuTranslate): MenuSpec {
+export function buildMenuSpec(t: MenuTranslate, recentFiles: string[] = []): MenuSpec {
   return {
     submenus: [
       {
@@ -92,7 +103,12 @@ export function buildMenuSpec(t: MenuTranslate): MenuSpec {
         items: [
           { kind: 'custom', id: 'new', label: t('menu.new'), accelerator: 'CmdOrCtrl+N' },
           { kind: 'custom', id: 'open', label: t('menu.open'), accelerator: 'CmdOrCtrl+O' },
-          { kind: 'custom', id: 'open-recent', label: t('menu.openRecent') },
+          {
+            kind: 'submenu',
+            id: 'open-recent',
+            label: t('menu.openRecent'),
+            items: buildRecentSubmenuItems(t, recentFiles),
+          },
           { kind: 'custom', id: 'new-window', label: t('menu.newWindow') },
           { kind: 'custom', id: 'save', label: t('menu.save'), accelerator: 'CmdOrCtrl+S' },
           { kind: 'separator' },
@@ -129,4 +145,30 @@ export function buildMenuSpec(t: MenuTranslate): MenuSpec {
       },
     ],
   };
+}
+
+/**
+ * Build the children of the "Open Recent" submenu.
+ *
+ * - No recents → a single `recent-none` placeholder (also a guard so the submenu
+ *   is never empty, which some platforms render oddly).
+ * - Otherwise → one `recent:<path>` custom item per file (label = basename; the
+ *   full path is recoverable from the id), then a separator and `recent-clear`.
+ *
+ * Red line (roadmap M0-4): labels stay short (basename); stale paths are never
+ * emitted because `recentFiles` is the single source of truth, capped by the
+ * config store.
+ */
+export function buildRecentSubmenuItems(t: MenuTranslate, recentFiles: string[]): MenuItemSpec[] {
+  if (recentFiles.length === 0) {
+    return [{ kind: 'custom', id: 'recent-none', label: t('menu.noRecent') }];
+  }
+  const items: MenuItemSpec[] = recentFiles.map((path) => ({
+    kind: 'custom',
+    id: `recent:${path}`,
+    label: basename(path),
+  }));
+  items.push({ kind: 'separator' });
+  items.push({ kind: 'custom', id: 'recent-clear', label: t('menu.clearRecent') });
+  return items;
 }

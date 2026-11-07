@@ -12,9 +12,9 @@ pub mod mcp;
 pub mod mcp_http;
 
 use commands::{
-    copy_file, exit_app, file_exists, get_app_version, get_user_data_dir, mcp_rpc_request,
-    open_url, read_text_file, rebuild_native_menu, show_in_folder, write_binary_file,
-    write_text_file,
+    append_text_file, copy_file, delete_files, exit_app, file_exists, get_app_version,
+    get_user_data_dir, list_backup_files, mcp_rpc_request, open_url, read_text_file,
+    rebuild_native_menu, show_in_folder, write_binary_file, write_text_file,
 };
 use tauri::menu::{AboutMetadataBuilder, MenuBuilder, MenuItemBuilder, SubmenuBuilder};
 use tauri::Emitter;
@@ -42,7 +42,10 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             read_text_file,
             write_text_file,
+            append_text_file,
             copy_file,
+            delete_files,
+            list_backup_files,
             write_binary_file,
             file_exists,
             get_user_data_dir,

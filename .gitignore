@@ -7,3 +7,6 @@ OutApp/
 .electron/
 package-lock.json
 *.log
+*.timestamp-*.mjs
+.Trash-0/
+.workbuddy/

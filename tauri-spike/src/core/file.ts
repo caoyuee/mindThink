@@ -8,6 +8,8 @@
 import { isTauri } from '@/platform';
 import * as tauri from './tauri-file';
 import * as web from './web-file';
+import { useConfigStore } from '@/stores/config';
+import { formatBackupStamp, selectBackupsToDelete } from '@/core/backup';
 
 export interface SaveOptions {
   suggestedName?: string;
@@ -92,9 +94,20 @@ export async function exportKm(
 /** 创建已有文件的备份。 */
 export async function backupFile(path: string): Promise<boolean> {
   if (!isTauri()) return false;
-  const stamp = new Date().toISOString().replace(/[.:]/g, '-');
+  const stamp = formatBackupStamp(new Date());
   await tauri.tauriCopyFile(path, `${path}.backup-${stamp}`);
   return true;
+}
+
+/**
+ * 备份保留策略（M0-3）：列出某文件的所有备份并裁剪到 keep 份（最新 keep 份保留）。
+ * 仅在桌面端生效；Web 端无备份机制，直接 no-op。删除失败抛错交由调用方处理（不静默）。
+ */
+export async function pruneBackups(path: string, keep: number): Promise<void> {
+  if (!isTauri()) return;
+  const sortedDesc = await tauri.tauriListBackupFiles(path);
+  const toDelete = selectBackupsToDelete(sortedDesc, keep);
+  if (toDelete.length) await tauri.tauriDeleteFiles(toDelete);
 }
 
 /** 平台自适应的另存为 */
@@ -104,10 +117,16 @@ export async function saveFile(
   title = 'Save Mind map',
 ): Promise<SaveResult> {
   if (isTauri()) {
+    // M0-5: 默认保存路径优先 defSavePath（设置页可选目录），否则仅用建议文件名。
+    const defSavePath = useConfigStore().userConfig.defSavePath;
+    const defaultPath =
+      defSavePath && defSavePath.trim()
+        ? `${defSavePath.replace(/[\\/]+$/, '')}/${suggestedName}`
+        : suggestedName;
     const path = await tauri.tauriSaveDialog({
       title,
       filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }],
-      defaultPath: suggestedName,
+      defaultPath,
     });
     if (!path) return { ok: false };
     await tauri.tauriWriteFile(path, content);

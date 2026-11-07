@@ -1,49 +1,81 @@
-# DesktopNaotu · 工程总览
+# mindThink · 工程总览
 
-> 桌面版脑图 · 现代化重构
->
-> - Web 端：Vue 3 + markmap + 4 语言 i18n
-> - 桌面端：Tauri 2.x 桌面壳 + Rust 后端
-> - 原项目存档：保留为 `legacy/`，方便对照与回退
+> AI 原生的本地优先思维导图工作台 —— **人用它思考，Agent 用它干活。**
+
+mindThink 是原 DesktopNaotu（桌面版脑图）的现代化重构项目。新定位：既是人的思考界面，也是 AI Agent 的操作对象——通过 **MCP 双向**（既是 Server 让 Claude/Cursor 读写你的脑图，也是 Client 让内置 AI 调用外部工具），以及**一切写入走同一条命令栈**的安全模型，在同类工具中建立差异化护城河。
+
+## 核心定位
+
+| 支柱 | 说明 |
+|---|---|
+| 开放纯文本 | 文档对人和 AI 都可读可写（Markdown 作为交换层） |
+| AI 直接编辑 | AI 不再只写备注，而是输出结构化节点操作（ops），经 diff 预览后走命令栈落盘 |
+| MCP 双向 | Server：让外部 Agent 读写脑图；Client：让内置 AI 调用外部工具 |
+
+## 技术栈
+
+| 层 | 技术 |
+|---|---|
+| Web 前端 | Vue 3.5 + Pinia + Vite 6 + TypeScript strict |
+| 桌面壳 | Tauri 2.x（Rust 后端，安装包 <25MB） |
+| 脑图内核 | markmap 0.18（现状）→ **simple-mind-map**（规划，见 docs/decisions.md D1） |
+| 测试/质量 | Vitest + ESLint 9 + Prettier 3 + parity 护栏 + CI |
+| i18n | vue-i18n，4 语言（zh-CN / en / zh-TW / de） |
 
 ## 目录结构
 
 ```
-newNaotu/                          ← 你在这里
-├── README.md                       本文件
-├── mindmap-vue3/                   Web 端（Vue 3 + markmap）
-├── tauri-spike/                    桌面端（Tauri 2.x + Rust）
-└── legacy/                         原 DesktopNaotu-master 存档（仅供参考）
+mindThink/
+├── README.md                    本文件（项目总入口）
+├── AGENTS.md                    统一开发规则（所有 AI Agent 必读）
+├── ROADMAP-2026-11-07.md        开发方向总体规划（六决策 + 六里程碑）
+├── docs/
+│   ├── architecture.md          目标架构与数据流
+│   ├── decisions.md             D1-D6 架构决策记录（ADR）
+│   ├── roadmap.md               可派工的路由图（任务级规格）
+│   └── archive/                 历史文档（HANDOFF/NEXT-PLAN/CODE_REVIEW 归档）
+├── mindmap-vue3/                Web 端（迭代开发主战场）
+├── tauri-spike/                 桌面端（Tauri 发布目标）
+├── legacy/                      原 Electron + kityminder 项目存档（只读参考）
+└── scripts/                     工程脚本（parity 护栏等）
 ```
 
 | 路径 | 用途 | 状态 |
 |---|---|---|
-| [`mindmap-vue3/`](mindmap-vue3/) | Web 端 | ✅ 0.1.0 alpha |
-| [`tauri-spike/`](tauri-spike/) | 桌面端 | ✅ 0.1.0 alpha（前端） / ⏳ 待 cargo 验证 |
-| [`legacy/`](legacy/) | 原 Electron + kityminder 项目存档 | 📦 仅参考，不再维护 |
+| `mindmap-vue3/` | Web 端 | 0.1.0 alpha |
+| `tauri-spike/` | 桌面端 | 0.1.0 alpha（前端完整 / cargo 已部分验证） |
+| `legacy/` | 原项目存档 | 📦 只读，不再维护 |
 
 ## 两个工程的关系
 
 ```
    ┌─────────────────────┐
-   │     mindmap-vue3     │   ← 迭代开发主战场
-   │     (Web 端)         │
+   │     mindmap-vue3     │   ← 迭代开发主战场（前端能力基线）
    └──────────┬──────────┘
-              │ 源码复制（手工同步）
+              │ 源码复制（手工同步 + parity 护栏校验）
               ▼
    ┌─────────────────────┐
    │     tauri-spike      │   ← 发布目标
-   │     (桌面端)         │
    │     ├─ Rust 后端     │
    │     └─ 前端 + 适配   │
    └─────────────────────┘
 ```
 
-未来可改为 pnpm workspace 或 git submodule 自动同步。
+> ⚠️ 当前为**双工程手工同步**，靠 `scripts/check-frontend-parity.mjs` 护栏防漂移。
+> 规划已决定合并为 **pnpm workspace monorepo**（见 docs/decisions.md D3），届时此结构作废。
+
+## 文档导航（新开发 AI 必读顺序）
+
+| 顺序 | 文档 | 何时读 |
+|---|---|---|
+| 1 | `README.md`（本文件） | 第一次接触项目 |
+| 2 | `AGENTS.md` | 修改任何代码前 |
+| 3 | `ROADMAP-2026-11-07.md` | 了解全局方向与待确认决策 |
+| 4 | `docs/decisions.md` | 了解已定的架构决策（D1-D6） |
+| 5 | `docs/architecture.md` | 修改跨模块代码前 |
+| 6 | `docs/roadmap.md` | 领取具体开发任务前 |
 
 ## 快速开始
-
-按需选择：
 
 ```bash
 # Web 端（纯浏览器）
@@ -57,58 +89,42 @@ pnpm install
 pnpm dev:tauri         # vite + Tauri 窗口
 ```
 
-如果从 Git 仓库迁过来后 `node_modules` 失效（pnpm 硬链接指向旧路径），先删除再重装：
+> 从 Git 仓库迁过来后 `node_modules` 失效（pnpm 硬链接指向旧路径），先 `rm -rf node_modules .pnpm-store pnpm-lock.yaml && pnpm install`。
+
+## 质量门禁
+
+两端分别执行（任一失败不能合并）：
 
 ```bash
-rm -rf node_modules .pnpm-store pnpm-lock.yaml
-pnpm install
+pnpm verify   # parity + typecheck + lint + format:check + test
+pnpm fix      # 本地一键修复：eslint --fix → prettier --write
 ```
 
-## 共用规则
+- **ESLint 9** 管代码规范与红线，**Prettier 3** 管排版；`eslint-config-prettier` 作为配置数组最后一项关闭所有冲突规则，两者不会互相覆盖。
+- 两端配置（`eslint.config.js` / `.prettierrc.json` / `.prettierignore` / `.editorconfig`）保持字节一致，改动必须双端同步；共享 `src/` 另有 parity 护栏。
+- 源码统一 LF；生成物由 `.prettierignore` 排除，`legacy/` 为只读存档不纳入检查。
+- 完整规则见 `AGENTS.md` §10。
 
-| 文档 | 何时读 |
-|---|---|
-| [mindmap-vue3/AGENTS.md](mindmap-vue3/AGENTS.md) | Web 端规则（基线） |
-| [tauri-spike/AGENTS.md](tauri-spike/AGENTS.md) | Tauri 端补充规则 |
-| [tauri-spike/docs/BUILD.md](tauri-spike/docs/BUILD.md) | 跨平台构建指南 |
-| [tauri-spike/docs/TROUBLESHOOTING.md](tauri-spike/docs/TROUBLESHOOTING.md) | 问题排查 |
+Rust 侧：
 
-## 路线图
+```bash
+cd tauri-spike/src-tauri
+cargo fmt -- --check && cargo check && cargo test && cargo clippy --all-targets -- -D warnings
+```
 
-| 阶段 | 内容 | 状态 |
+## 路线图概览
+
+| 里程碑 | 版本 | 主题 |
 |---|---|---|
-| 1. Spike 验证 | Vue3 + markmap 可行性 | ✅ |
-| 2. 正式工程骨架 | 路由、store、i18n、测试、CI | ✅ |
-| 3. Tauri 桌面壳 | 桌面集成、跨平台打包 | ✅（前端）/ ⏳（cargo 验证） |
-| 4. MCP/AI 集成 | 暴露脑图为 MCP Resources | ⏳ |
-| 5. v0.2.0 | 拖拽节点、PNG导出、更多功能 | ⏳ |
-| 6. v1.0.0 | 自动更新、签名、稳定版发布 | ⏳ |
+| M0 | v0.2 | 工程收口（备份策略 / Recent 子菜单 / defSavePath / monorepo） |
+| M1 | v0.3 | 内核升级 simple-mind-map + 设计系统 |
+| M2 | v0.4 | AI 结构化编辑（ops + diff 预览 + 成组撤销） |
+| M3 | v0.5 | MCP Server 实时桥接 + 鉴权 |
+| M4 | v0.6 | MCP Client + Agent 会话 |
+| M5 | v1.0 | 发布工程（签名 / 更新 / 三平台 CI） |
 
-## 改造前 vs 改造后
-
-| 维度 | 改造前（`legacy/`） | 改造后（`mindmap-vue3/` + `tauri-spike/`） |
-|---|---|---|
-| 桌面壳 | Electron 11 | Tauri 2.x |
-| 前端框架 | AngularJS 1.4 + jQuery | Vue 3 + `<script setup>` |
-| 脑图内核 | kityminder-editor | markmap |
-| 构建工具 | gulp 3 + browserify | Vite 6 |
-| 包管理 | npm + bower | pnpm |
-| 测试 | 无 | Vitest + 14 个测试 |
-| 类型检查 | target ES3 | TypeScript strict |
-| Lint/Format | 无 | ESLint 9 + Prettier 3 |
-| CI | 无 | GitHub Actions |
-| 国际化 | 4 语言硬编码 | vue-i18n + 4 语言 |
-| 撤销/重做 | 自行实现 | 快照命令栈 |
-| 脑图格式 | km (XML) | Markdown (.md) |
-| 安装包体积 | ~50MB | ~10-20MB |
-| 启动内存 | ~150MB+ | ~40-60MB |
-
-## 已知限制
-
-- markmap 不支持节点图片（kityminder 支持）。spike 阶段先不做
-- Tauri 应用体积约 10-20MB（仍小于 Electron 的 50MB+）
-- DSH 沙箱无法跑 `pnpm dev:tauri` / `cargo build`，需本地验证
+详见 `docs/roadmap.md`。
 
 ## 许可
 
-[GPL-2.0](../LICENSE)
+[GPL-2.0](LICENSE)

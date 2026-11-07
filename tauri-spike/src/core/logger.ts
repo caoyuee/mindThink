@@ -9,6 +9,8 @@
  * 满足 AGENTS.md 第 10 节: 禁止静默 catch、禁止裸 console.log
  */
 
+import { emitLog, type LogLevel } from './log-sink';
+
 type Level = 'debug' | 'info' | 'warn' | 'error';
 
 const LEVEL_ORDER: Record<Level, number> = {
@@ -37,6 +39,16 @@ function format(level: Level, msg: string, extra?: unknown): unknown[] {
   return [prefix, msg];
 }
 
+/** 构造落盘用的单行文本（仅含消息，绝不携带 extra，防止 API key 入盘）。 */
+function toDiskLine(level: Level, msg: string): string {
+  const ts = new Date().toISOString();
+  return `[${ts}] [${level.toUpperCase()}] ${msg}`;
+}
+
+function diskLevel(level: Level): LogLevel {
+  return level.toUpperCase() as LogLevel;
+}
+
 export const logger = {
   /**
    * 调试日志。仅 dev 环境输出。
@@ -57,10 +69,12 @@ export const logger = {
   warn(msg: string, extra?: unknown): void {
     if (!shouldLog('warn')) return;
     console.warn(...format('warn', msg, extra));
+    emitLog(diskLevel('warn'), toDiskLine('warn', msg));
   },
 
   /** 错误。永远输出, 带 stack */
   error(msg: string, err?: unknown): void {
     console.error(...format('error', msg, err));
+    emitLog(diskLevel('error'), toDiskLine('error', msg));
   },
 } as const;

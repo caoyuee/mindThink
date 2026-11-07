@@ -11,8 +11,10 @@
     "build:tauri": "tauri build",
     "typecheck": "vue-tsc --noEmit",
     "lint": "eslint .",
-    "format:check": "prettier --check \"src/**/*.{ts,vue,css,json}\"",
-    "format": "prettier --write \"src/**/*.{ts,vue,css,json}\" \"*.{ts,json,md}\"",
+    "lint:fix": "eslint . --fix",
+    "fix": "pnpm lint:fix && pnpm format",
+    "format:check": "prettier --check \"src/**/*.{ts,vue,css,json}\" \"*.{ts,js,json}\"",
+    "format": "prettier --write \"src/**/*.{ts,vue,css,json}\" \"*.{ts,js,json}\"",
     "test": "vitest run",
     "parity": "node ../scripts/check-frontend-parity.mjs",
     "verify": "pnpm parity && pnpm typecheck && pnpm lint && pnpm format:check && pnpm test"

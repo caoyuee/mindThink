@@ -27,9 +27,18 @@ import {
   searchNodes,
 } from '@/core/tree';
 import { CommandStack, docOf } from '@/core/commands';
-import { saveFile, saveFileAtPath, backupFile, openFile, openFileAtPath } from '@/core/file';
+import {
+  saveFile,
+  saveFileAtPath,
+  backupFile,
+  openFile,
+  openFileAtPath,
+  pruneBackups,
+} from '@/core/file';
 import { logger } from '@/core/logger';
 import { useConfigStore } from './config';
+import { i18n } from '@/i18n';
+import { useToastStore } from '@/composables/useToast';
 import { fromKmJson } from '@/core/km';
 
 const transformer = new Transformer();
@@ -51,6 +60,8 @@ export function newNodeId(): string {
 export const useMindmapStore = defineStore('mindmap', () => {
   // 状态
   const config = useConfigStore();
+  const t = i18n.global.t.bind(i18n.global);
+  const toast = useToastStore();
   const doc = ref<MindDoc>(docOf(createNode('中心主题')));
   const selectedId = ref<string | null>(null);
   const documentPath = ref<string | null>(null);
@@ -379,6 +390,15 @@ export const useMindmapStore = defineStore('mindmap', () => {
     if (!documentPath.value) return saveAs();
     if (options.backup) await backupFile(documentPath.value);
     await saveFileAtPath(documentPath.value, markdown());
+    // M0-3: 备份成功后按保留策略裁剪老备份（删除失败不静默，向上抛出）。
+    if (options.backup) {
+      try {
+        await pruneBackups(documentPath.value, config.userConfig.backupKeepMax);
+      } catch (error) {
+        logger.warn('备份清理失败', error);
+        toast.warn(`${t('toast.error')}: ${(error as Error).message}`);
+      }
+    }
     isDirty.value = false;
     return true;
   }

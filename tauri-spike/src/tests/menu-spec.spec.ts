@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { buildMenuSpec, MENU_LABEL_KEYS, type MenuSpec } from '@/core/menu-spec';
+import {
+  buildMenuSpec,
+  buildRecentSubmenuItems,
+  MENU_LABEL_KEYS,
+  type MenuSpec,
+} from '@/core/menu-spec';
 import zhCN from '../i18n/locales/zh-CN.json';
 import en from '../i18n/locales/en.json';
 import zhTW from '../i18n/locales/zh-TW.json';
@@ -21,12 +26,20 @@ function lookup(root: LocaleMessages, key: string): unknown {
   }, root);
 }
 
-describe('native menu spec structure', () => {
-  const spec = buildMenuSpec(stubT);
+function customIds(items: MenuSpec['submenus'][number]['items']): string[] {
+  return items.filter((i) => i.kind === 'custom').map((i) => (i.kind === 'custom' ? i.id : ''));
+}
 
-  function customIds(items: MenuSpec['submenus'][number]['items']): string[] {
-    return items.filter((i) => i.kind === 'custom').map((i) => (i.kind === 'custom' ? i.id : ''));
+function findSubmenu(spec: MenuSpec, id: string) {
+  for (const s of spec.submenus) {
+    const hit = s.items.find((i) => i.kind === 'submenu' && i.id === id);
+    if (hit && hit.kind === 'submenu') return hit;
   }
+  return undefined;
+}
+
+describe('native menu spec structure', () => {
+  const spec = buildMenuSpec(stubT, []);
 
   it('emits app / File / Edit / View / Help in order', () => {
     expect(spec.submenus.map((s) => s.label)).toEqual([
@@ -38,12 +51,11 @@ describe('native menu spec structure', () => {
     ]);
   });
 
-  it('keeps stable custom ids and their accelerators', () => {
+  it('keeps stable top-level custom ids and their accelerators', () => {
     const all = spec.submenus.flatMap((s) => s.items);
     expect(customIds(all)).toEqual([
       'new',
       'open',
-      'open-recent',
       'new-window',
       'save',
       'toggle-devtools',
@@ -58,9 +70,14 @@ describe('native menu spec structure', () => {
     expect(accel('open')).toBe('CmdOrCtrl+O');
     expect(accel('save')).toBe('CmdOrCtrl+S');
     expect(accel('toggle-devtools')).toBe('CmdOrCtrl+Shift+D');
-    expect(accel('open-recent')).toBeUndefined();
     expect(accel('new-window')).toBeUndefined();
     expect(accel('about')).toBeUndefined();
+  });
+
+  it('File menu exposes Open Recent as a nested submenu', () => {
+    const recent = findSubmenu(spec, 'open-recent');
+    expect(recent).toBeDefined();
+    expect(recent?.kind === 'submenu' && recent.label).toBe(stubT('menu.openRecent'));
   });
 
   it('File menu ends with a separator then a Quit role', () => {
@@ -93,6 +110,32 @@ describe('native menu spec structure', () => {
       kind: 'role',
       role: 'fullscreen',
       label: stubT('menu.fullscreen'),
+    });
+  });
+});
+
+describe('Open Recent submenu contents', () => {
+  it('shows a placeholder when there are no recent files', () => {
+    const items = buildRecentSubmenuItems(stubT, []);
+    expect(items).toEqual([{ kind: 'custom', id: 'recent-none', label: stubT('menu.noRecent') }]);
+  });
+
+  it('lists recent:<path> items, a separator, then recent-clear', () => {
+    const items = buildRecentSubmenuItems(stubT, ['/a/b/one.md', '/a/two.md']);
+    expect(items).toEqual([
+      { kind: 'custom', id: 'recent:/a/b/one.md', label: 'one.md' },
+      { kind: 'custom', id: 'recent:/a/two.md', label: 'two.md' },
+      { kind: 'separator' },
+      { kind: 'custom', id: 'recent-clear', label: stubT('menu.clearRecent') },
+    ]);
+  });
+
+  it('uses the file basename as the menu label', () => {
+    const items = buildRecentSubmenuItems(stubT, ['C:\\Users\\me\\Doc.md']);
+    expect(items[0]).toEqual({
+      kind: 'custom',
+      id: 'recent:C:\\Users\\me\\Doc.md',
+      label: 'Doc.md',
     });
   });
 });

@@ -104,6 +104,18 @@ export async function tauriGetUserDataDir(): Promise<string> {
   return invoke<string>('get_user_data_dir');
 }
 
+/**
+ * 追加一行到磁盘日志文件（userData/logs/naotu.log）。
+ * 仅由日志 sink 在用户开启 ifSaveLogToDisk 时调用（Web 端不会注册 sink）。
+ * 落盘内容只含人类可读消息，绝不携带 API key 等敏感信息。
+ */
+export async function tauriAppendLogLine(line: string): Promise<void> {
+  if (!isTauri()) return;
+  const dir = await tauriGetUserDataDir();
+  const logPath = `${dir}/logs/naotu.log`;
+  await invoke('append_text_file', { path: logPath, content: `${line}\n` });
+}
+
 /** 退出应用 */
 export function tauriExit(): void {
   if (!isTauri()) return;
@@ -120,4 +132,23 @@ export async function tauriGetAppVersion(): Promise<string> {
 export async function tauriRebuildNativeMenu(spec: unknown): Promise<void> {
   if (!isTauri()) throw new Error('tauriRebuildNativeMenu 只能在 Tauri 环境调用');
   await invoke('rebuild_native_menu', { spec });
+}
+
+/**
+ * 列出某文件的备份文件（`<原名>.backup-*`），按时间降序（最新在前）。
+ * 实际磁盘扫描由 Rust 命令完成，前端只拿到已排序的绝对路径列表。
+ */
+export async function tauriListBackupFiles(path: string): Promise<string[]> {
+  if (!isTauri()) return [];
+  return invoke<string[]>('list_backup_files', { path });
+}
+
+/**
+ * 删除给定路径的文件。仅允许删除 `.backup-*` 命名的备份文件（Rust 端二次校验），
+ * 杜绝误删。删除失败抛错，由调用方以 toast 提示，不静默吞掉。
+ */
+export async function tauriDeleteFiles(paths: string[]): Promise<void> {
+  if (!isTauri()) return;
+  if (!paths.length) return;
+  await invoke('delete_files', { paths });
 }
