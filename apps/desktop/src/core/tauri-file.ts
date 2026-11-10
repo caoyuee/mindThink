@@ -92,10 +92,28 @@ export async function tauriOpenUrl(url: string): Promise<void> {
   await invoke('open_url', { url });
 }
 
-/** 通过 Rust IPC 处理 MCP JSON-RPC 请求。 */
-export async function tauriMcpRpcRequest(request: unknown, context: unknown): Promise<unknown> {
-  if (!isTauri()) throw new Error('tauriMcpRpcRequest 只能在 Tauri 环境调用');
-  return invoke('mcp_rpc_request', { request, context });
+/** 启动 MCP server（幂等），返回端口与本次会话 token。 */
+export async function tauriMcpStart(): Promise<{ port: number; token: string }> {
+  if (!isTauri()) throw new Error('tauriMcpStart 只能在 Tauri 环境调用');
+  return invoke<{ port: number; token: string }>('mcp_start');
+}
+
+/** 停止 MCP server（幂等）。 */
+export async function tauriMcpStop(): Promise<void> {
+  if (!isTauri()) throw new Error('tauriMcpStop 只能在 Tauri 环境调用');
+  await invoke('mcp_stop');
+}
+
+/** 查询 MCP server 当前状态（未运行返回 null）。 */
+export async function tauriMcpStatus(): Promise<{ port: number; token: string } | null> {
+  if (!isTauri()) throw new Error('tauriMcpStatus 只能在 Tauri 环境调用');
+  return invoke<{ port: number; token: string } | null>('mcp_status');
+}
+
+/** webview 回传一条 MCP JSON-RPC 响应（对应 Rust emit 的 mcp-request rid）。 */
+export async function tauriMcpRespond(rid: number, message: string): Promise<void> {
+  if (!isTauri()) throw new Error('tauriMcpRespond 只能在 Tauri 环境调用');
+  await invoke('mcp_respond', { rid, message: JSON.parse(message) });
 }
 
 /** 获取应用 userData 目录 */

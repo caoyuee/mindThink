@@ -8,14 +8,14 @@
  * - 插件: dialog, fs, opener, shell
  */
 mod commands;
-pub mod mcp;
-pub mod mcp_http;
+pub mod mcp_server;
 
 use commands::{
     append_text_file, copy_file, delete_files, exit_app, file_exists, get_app_version,
-    get_user_data_dir, list_backup_files, mcp_rpc_request, open_url, read_text_file,
-    rebuild_native_menu, show_in_folder, write_binary_file, write_text_file,
+    get_user_data_dir, list_backup_files, open_url, read_text_file, rebuild_native_menu,
+    show_in_folder, write_binary_file, write_text_file,
 };
+use mcp_server::{mcp_respond, mcp_start, mcp_status, mcp_stop};
 use tauri::menu::{AboutMetadataBuilder, MenuBuilder, MenuItemBuilder, SubmenuBuilder};
 use tauri::Emitter;
 
@@ -27,6 +27,7 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
+        .manage(mcp_server::McpServerState::default())
         .setup(|app| {
             // 构造应用菜单
             let menu = build_menu(app.handle())?;
@@ -54,7 +55,10 @@ pub fn run() {
             exit_app,
             get_app_version,
             rebuild_native_menu,
-            mcp_rpc_request,
+            mcp_start,
+            mcp_stop,
+            mcp_status,
+            mcp_respond,
         ])
         .run(tauri::generate_context!())
         .unwrap_or_else(|error| eprintln!("error while running tauri application: {error}"));
