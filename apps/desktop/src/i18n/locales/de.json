@@ -71,7 +71,8 @@
     "paste": "Einfügen",
     "selectAll": "Alles auswählen",
     "toggleDevtools": "Entwicklertools umschalten",
-    "fullscreen": "Vollbild umschalten"
+    "fullscreen": "Vollbild umschalten",
+    "themeToggle": "Thema wechseln"
   },
   "panel": {
     "properties": "Eigenschaften",

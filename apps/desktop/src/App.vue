@@ -2,8 +2,7 @@
 /**
  * 应用根组件
  *
- * 布局:
- * - AppHeader (路由 + 语言 + 主题)
+ * 布局 (桌面端无 AppHeader: 导航/语言/主题并入系统原生菜单, 见 menu-spec.ts):
  * - <RouterView /> (路由级页面: editor / settings / about)
  * - AppStatusBar (撤销/重做 + 文档概要)
  * - Toast (全局通知)
@@ -15,7 +14,6 @@ import { onBeforeUnmount, onMounted, watch } from 'vue';
 import { listen, type Event as TauriEvent, type UnlistenFn } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
-import AppHeader from '@/components/layout/AppHeader.vue';
 import AppStatusBar from '@/components/layout/AppStatusBar.vue';
 import Toast from '@/components/common/Toast.vue';
 import DialogHost from '@/components/dialogs/DialogHost.vue';
@@ -25,6 +23,7 @@ import { useConfigStore } from '@/stores/config';
 import { useToastStore } from '@/composables/useToast';
 import { useDialog } from '@/composables/useDialog';
 import { useI18n } from 'vue-i18n';
+import { setLocale, type AppLocale } from '@/i18n';
 import { detectPlatform, registerDirPicker, registerMcpStatusProvider } from '@/platform';
 import { fileApi } from '@/core/file';
 import { createMcpContext, parseMcpRpcRequest } from '@/core/mcp';
@@ -198,6 +197,16 @@ async function handleMenuEvent(id: string): Promise<void> {
     config.clearRecentFiles();
     return;
   }
+  // 原生「语言」子菜单：`lang:<locale>` 切换界面语言（locale watcher 会重建菜单）
+  if (id.startsWith('lang:')) {
+    setLocale(id.slice('lang:'.length) as AppLocale);
+    return;
+  }
+  // 原生「导航」子菜单：`nav:<route>` 替代被移除的 AppHeader 顶部标签页
+  if (id.startsWith('nav:')) {
+    await router.push(`/${id.slice('nav:'.length)}`);
+    return;
+  }
   try {
     switch (id) {
       case 'new':
@@ -234,6 +243,9 @@ async function handleMenuEvent(id: string): Promise<void> {
         break;
       case 'toggle-devtools':
         toast.info(t('menu.devtoolsUnavailable'));
+        break;
+      case 'theme-toggle':
+        ui.toggleTheme();
         break;
       case 'about':
         await router.push('/about');
@@ -383,7 +395,6 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="app-shell">
-    <AppHeader />
     <main class="app-main">
       <RouterView />
     </main>
@@ -396,7 +407,8 @@ onBeforeUnmount(() => {
 <style scoped>
 .app-shell {
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  /* 桌面端无 AppHeader：两行布局，主区 1fr 撑满，状态栏 auto 贴底 */
+  grid-template-rows: 1fr auto;
   height: 100%;
 }
 .app-main {

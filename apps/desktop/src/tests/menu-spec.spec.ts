@@ -41,9 +41,10 @@ function findSubmenu(spec: MenuSpec, id: string) {
 describe('native menu spec structure', () => {
   const spec = buildMenuSpec(stubT, []);
 
-  it('emits app / File / Edit / View / Help in order', () => {
+  it('emits app / Navigate / File / Edit / View / Help in order', () => {
     expect(spec.submenus.map((s) => s.label)).toEqual([
       stubT('app.name'),
+      stubT('menu.navigate'),
       stubT('menu.file'),
       stubT('menu.edit'),
       stubT('menu.view'),
@@ -51,14 +52,35 @@ describe('native menu spec structure', () => {
     ]);
   });
 
+  it('Navigate submenu mirrors the removed AppHeader route tabs', () => {
+    const navigate = spec.submenus[1];
+    expect(customIds(navigate.items)).toEqual([
+      'nav:editor',
+      'nav:settings',
+      'nav:shortcuts',
+      'nav:about',
+    ]);
+    expect(navigate.items.map((i) => (i.kind === 'separator' ? '' : i.label))).toEqual([
+      stubT('menu.goEditor'),
+      stubT('menu.goSettings'),
+      stubT('menu.goShortcuts'),
+      stubT('menu.goAbout'),
+    ]);
+  });
+
   it('keeps stable top-level custom ids and their accelerators', () => {
     const all = spec.submenus.flatMap((s) => s.items);
     expect(customIds(all)).toEqual([
+      'nav:editor',
+      'nav:settings',
+      'nav:shortcuts',
+      'nav:about',
       'new',
       'open',
       'new-window',
       'save',
       'toggle-devtools',
+      'theme-toggle',
       'about',
     ]);
 
@@ -71,6 +93,7 @@ describe('native menu spec structure', () => {
     expect(accel('save')).toBe('CmdOrCtrl+S');
     expect(accel('toggle-devtools')).toBe('CmdOrCtrl+Shift+D');
     expect(accel('new-window')).toBeUndefined();
+    expect(accel('theme-toggle')).toBeUndefined();
     expect(accel('about')).toBeUndefined();
   });
 
@@ -81,14 +104,14 @@ describe('native menu spec structure', () => {
   });
 
   it('File menu ends with a separator then a Quit role', () => {
-    const file = spec.submenus[1];
+    const file = spec.submenus[2];
     const tail = file.items.slice(-2);
     expect(tail[0]).toEqual({ kind: 'separator' });
     expect(tail[1]).toEqual({ kind: 'role', role: 'quit', label: stubT('menu.quit') });
   });
 
   it('Edit menu is a fixed native role sequence', () => {
-    const edit = spec.submenus[2];
+    const edit = spec.submenus[3];
     expect(edit.items.map((i) => (i.kind === 'role' ? i.role : i.kind))).toEqual([
       'undo',
       'redo',
@@ -100,17 +123,37 @@ describe('native menu spec structure', () => {
     ]);
   });
 
-  it('View menu pairs toggle-devtools custom item with a Fullscreen role', () => {
-    const view = spec.submenus[3];
-    expect(view.items).toHaveLength(2);
-    const first = view.items[0];
-    expect(first.kind).toBe('custom');
-    expect(first.kind === 'custom' && first.id).toBe('toggle-devtools');
-    expect(view.items[1]).toEqual({
+  it('View menu hosts devtools / fullscreen / theme toggle / language submenu', () => {
+    const view = spec.submenus[4];
+    expect(view.items).toHaveLength(6);
+    expect(view.items[0]).toMatchObject({ kind: 'custom', id: 'toggle-devtools' });
+    expect(view.items[1]).toEqual({ kind: 'separator' });
+    expect(view.items[2]).toEqual({
       kind: 'role',
       role: 'fullscreen',
       label: stubT('menu.fullscreen'),
     });
+    expect(view.items[3]).toEqual({ kind: 'separator' });
+    expect(view.items[4]).toMatchObject({ kind: 'custom', id: 'theme-toggle' });
+    const language = view.items[5];
+    expect(language.kind).toBe('submenu');
+    if (language.kind === 'submenu') {
+      expect(language.id).toBe('language');
+      expect(language.label).toBe(stubT('menu.language'));
+      // 语言名是各语言原生拼写，永不翻译
+      expect(language.items.map((i) => (i.kind === 'custom' ? i.id : ''))).toEqual([
+        'lang:zh-CN',
+        'lang:zh-TW',
+        'lang:en',
+        'lang:de',
+      ]);
+      expect(language.items.map((i) => (i.kind === 'custom' ? i.label : ''))).toEqual([
+        '简体中文',
+        '繁體中文',
+        'English',
+        'Deutsch',
+      ]);
+    }
   });
 });
 

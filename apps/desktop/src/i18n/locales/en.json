@@ -71,7 +71,8 @@
     "paste": "Paste",
     "selectAll": "Select All",
     "toggleDevtools": "Toggle Developer Tools",
-    "fullscreen": "Toggle Full Screen"
+    "fullscreen": "Toggle Full Screen",
+    "themeToggle": "Toggle Theme"
   },
   "panel": {
     "properties": "Properties",

@@ -8,7 +8,7 @@
  * menu follows the current UI locale instantly.
  *
  * IDs and structure mirror the hard-coded English default menu in
- * `src-tauri/src/lib.rs::build_menu` (app / File / Edit / View / Help). Role
+ * `src-tauri/src/lib.rs::build_menu` (app / Navigate / File / Edit / View / Help). Role
  * items keep Tauri's native role semantics (About metadata / Quit / Edit roles /
  * Fullscreen); they are expressed as `{ kind: 'role' }` so the Rust side never
  * degrades them to plain text items.
@@ -51,10 +51,17 @@ export interface MenuSpec {
  */
 export const MENU_LABEL_KEYS: readonly string[] = [
   'app.name',
+  'menu.navigate',
   'menu.file',
   'menu.edit',
   'menu.view',
   'menu.help',
+  'menu.language',
+  'menu.themeToggle',
+  'menu.goEditor',
+  'menu.goSettings',
+  'menu.goShortcuts',
+  'menu.goAbout',
   'menu.new',
   'menu.open',
   'menu.openRecent',
@@ -80,11 +87,27 @@ export type MenuTranslate = (key: string) => string;
 import { basename } from '@/core/backup';
 
 /**
+ * 语言子菜单条目（"导航"替代被移除的 AppHeader 语言下拉）。
+ * 标签是各语言的原生名称，属专有名词、永不翻译，因此在此硬编码，
+ * 与 packages/i18n 的 LOCALE_LABELS 保持一致（SUPPORTED_LOCALES = zh-CN/en/zh-TW/de）。
+ */
+const LANGUAGE_MENU_ITEMS: MenuItemSpec[] = [
+  { kind: 'custom', id: 'lang:zh-CN', label: '简体中文' },
+  { kind: 'custom', id: 'lang:zh-TW', label: '繁體中文' },
+  { kind: 'custom', id: 'lang:en', label: 'English' },
+  { kind: 'custom', id: 'lang:de', label: 'Deutsch' },
+];
+
+/**
  * Build the full native menu for the current locale.
  *
  * Accelerators are kept identical to the previous English default:
  * New = CmdOrCtrl+N, Open = CmdOrCtrl+O, Save = CmdOrCtrl+S,
  * toggle-devtools = CmdOrCtrl+Shift+D. File menu ends with a separator + Quit.
+ *
+ * Desktop 端 AppHeader 已移除，其能力并入原生菜单：
+ * - 「导航」子菜单承载原顶部标签页（编辑器/设置/快捷键/关于）；
+ * - 「视图」子菜单末尾承载主题切换与语言选择。
  */
 export function buildMenuSpec(t: MenuTranslate, recentFiles: string[] = []): MenuSpec {
   return {
@@ -96,6 +119,15 @@ export function buildMenuSpec(t: MenuTranslate, recentFiles: string[] = []): Men
           { kind: 'role', role: 'about', label: t('menu.about') },
           { kind: 'separator' },
           { kind: 'role', role: 'quit', label: t('menu.quit') },
+        ],
+      },
+      {
+        label: t('menu.navigate'),
+        items: [
+          { kind: 'custom', id: 'nav:editor', label: t('menu.goEditor') },
+          { kind: 'custom', id: 'nav:settings', label: t('menu.goSettings') },
+          { kind: 'custom', id: 'nav:shortcuts', label: t('menu.goShortcuts') },
+          { kind: 'custom', id: 'nav:about', label: t('menu.goAbout') },
         ],
       },
       {
@@ -136,7 +168,16 @@ export function buildMenuSpec(t: MenuTranslate, recentFiles: string[] = []): Men
             label: t('menu.toggleDevtools'),
             accelerator: 'CmdOrCtrl+Shift+D',
           },
+          { kind: 'separator' },
           { kind: 'role', role: 'fullscreen', label: t('menu.fullscreen') },
+          { kind: 'separator' },
+          { kind: 'custom', id: 'theme-toggle', label: t('menu.themeToggle') },
+          {
+            kind: 'submenu',
+            id: 'language',
+            label: t('menu.language'),
+            items: LANGUAGE_MENU_ITEMS,
+          },
         ],
       },
       {

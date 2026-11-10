@@ -199,7 +199,13 @@ pub async fn mcp_start(
                     std::thread::spawn(move || {
                         let _ = serve_connection(&stream, &conn_shared, &|rid, message| {
                             conn_app
-                                .emit("mcp-request", McpRequestPayload { rid, message })
+                                .emit(
+                                    "mcp-request",
+                                    McpRequestPayload {
+                                        rid,
+                                        message: message.clone(),
+                                    },
+                                )
                                 .is_ok()
                         });
                     });
@@ -275,7 +281,7 @@ fn serve_connection(
         Err(error) => http_response(error.status, error.reason, &error.body),
         Ok(request) => match authorize(shared, &request) {
             Err(error) => http_response(error.status, error.reason, &error.body),
-            Ok(body) => match serde_json::from_slice::<Value>(&body) {
+            Ok(()) => match serde_json::from_slice::<Value>(&request.body) {
                 Ok(message) => serve_message(shared, dispatch, message),
                 Err(error) => http_parse_error(error),
             },

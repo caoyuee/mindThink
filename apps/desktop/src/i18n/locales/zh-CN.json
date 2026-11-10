@@ -71,7 +71,8 @@
     "paste": "粘贴",
     "selectAll": "全选",
     "toggleDevtools": "切换开发者工具",
-    "fullscreen": "切换全屏"
+    "fullscreen": "切换全屏",
+    "themeToggle": "切换明暗主题"
   },
   "panel": {
     "properties": "属性",
