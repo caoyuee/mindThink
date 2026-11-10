@@ -12,7 +12,7 @@
  * 与 AGENTS.md "禁止直接修改环境" 一致。
  */
 import { onBeforeUnmount, onMounted, watch } from 'vue';
-import { emit, listen, type Event as TauriEvent, type UnlistenFn } from '@tauri-apps/api/event';
+import { listen, type Event as TauriEvent, type UnlistenFn } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import AppHeader from '@/components/layout/AppHeader.vue';
@@ -25,18 +25,23 @@ import { useConfigStore } from '@/stores/config';
 import { useToastStore } from '@/composables/useToast';
 import { useDialog } from '@/composables/useDialog';
 import { useI18n } from 'vue-i18n';
-import { detectPlatform, registerDirPicker } from '@/platform';
+import { detectPlatform, registerDirPicker, registerMcpStatusProvider } from '@/platform';
 import { fileApi } from '@/core/file';
-import {
-  createMcpContext,
-  handleMcpRpcRequest as handleMcpRpcProtocol,
-  parseMcpRequest,
-  parseMcpRpcRequest,
-} from '@/core/mcp';
+import { createMcpContext, parseMcpRpcRequest } from '@/core/mcp';
+import { handleMcpServerRpc, type ApplyOpsOutcome, type McpServerDeps } from '@/core/mcp-server';
+import type { MindMapOp } from '@/core/ops';
 import { router } from '@/router';
 import { buildDocumentTitle } from '@/core/document-title';
 import { buildMenuSpec } from '@/core/menu-spec';
-import { tauriRebuildNativeMenu, tauriAppendLogLine, tauriOpenDialog } from '@/core/tauri-file';
+import {
+  tauriRebuildNativeMenu,
+  tauriAppendLogLine,
+  tauriOpenDialog,
+  tauriMcpStart,
+  tauriMcpStop,
+  tauriMcpRespond,
+  tauriMcpStatus,
+} from '@/core/tauri-file';
 import { setLogSink } from '@/core/log-sink';
 import { logger } from '@/core/logger';
 
@@ -56,7 +61,6 @@ let stopMenuListener: UnlistenFn | null = null;
 let stopCloseListener: UnlistenFn | null = null;
 let stopDragListener: UnlistenFn | null = null;
 let stopMcpListener: UnlistenFn | null = null;
-let stopMcpRpcListener: UnlistenFn | null = null;
 let autoSaveTimer: number | null = null;
 
 watch(
@@ -84,71 +88,90 @@ watch(
   { immediate: true },
 );
 
-function executeMcpTool(tool: string, args: Record<string, unknown>): unknown {
-  switch (tool) {
-    case 'get_current_mindmap':
-      return createMcpContext(mindmap.doc).current;
-    case 'update_node':
-      if (typeof args['id'] !== 'string' || typeof args['text'] !== 'string') {
-        throw new Error('update_node 需要 id 和 text');
+// —— MCP server 桥接（D5 阶段一）：传输在 Rust，协议业务在 webview ——
+
+/** 把 ops 转成批准对话框里的逐行摘要。 */
+function formatOpsSummary(ops: MindMapOp[]): string {
+  return ops
+    .map((op) => {
+      switch (op.op) {
+        case 'add_child':
+          return `[add_child] "${op.text}" → parent ${op.parentId}`;
+        case 'add_sibling':
+          return `[add_sibling] "${op.text}" → sibling ${op.siblingId}`;
+        case 'update_node': {
+          const parts: string[] = [`[update_node] ${op.nodeId}`];
+          if (op.text !== undefined) parts.push(`text="${op.text}"`);
+          if (op.note !== undefined)
+            parts.push(op.note === null ? 'note=清除' : `note="${op.note}"`);
+          return parts.join(' ');
+        }
+        case 'delete_node':
+          return `[delete_node] ${op.nodeId}`;
       }
-      mindmap.renameNode(args['id'], args['text']);
-      return { ok: true };
-    case 'add_node':
-      if (typeof args['parentId'] !== 'string' || typeof args['text'] !== 'string') {
-        throw new Error('add_node 需要 parentId 和 text');
-      }
-      mindmap.addChild(args['parentId'], args['text']);
-      return { ok: true };
-    default:
-      throw new Error(`不支持的 MCP 工具: ${tool}`);
+    })
+    .join('\n');
+}
+
+/** MCP 写链路：默认弹批准对话框（fail-closed），设置开启后自动批准。 */
+async function mcpApplyOps(ops: MindMapOp[]): Promise<ApplyOpsOutcome> {
+  if (config.userConfig.mcpAutoApproveWrites) {
+    const outcome = mindmap.applyExternalOps(ops);
+    return { approved: true, results: outcome.results, appliedCount: outcome.appliedCount };
+  }
+  const approved = await dialog.confirm({
+    title: t('mcp.approvalTitle'),
+    message: `${t('mcp.approvalIntro')}\n\n${formatOpsSummary(ops)}`,
+    okText: t('mcp.approve'),
+    cancelText: t('mcp.reject'),
+  });
+  if (!approved) return { approved: false, reason: t('mcp.rejectedReason') };
+  const outcome = mindmap.applyExternalOps(ops);
+  return { approved: true, results: outcome.results, appliedCount: outcome.appliedCount };
+}
+
+function mcpServerDeps(): McpServerDeps {
+  return {
+    getContext: () => createMcpContext(mindmap.doc),
+    applyOps: mcpApplyOps,
+    exportMarkdown: () => createMcpContext(mindmap.doc).current.markdown,
+  };
+}
+
+/** Rust 传输层转发来的 JSON-RPC 请求 → 协议分发 → 回传。必须始终回包（否则 Rust 侧 30s 超时）。 */
+async function handleMcpBridgeRequest(payload: { rid: number; message: unknown }): Promise<void> {
+  let response: Record<string, unknown>;
+  try {
+    const request = parseMcpRpcRequest(payload.message);
+    const result = await handleMcpServerRpc(request, mcpServerDeps());
+    response = (result ?? { jsonrpc: '2.0', id: request.id ?? null }) as Record<string, unknown>;
+  } catch (error) {
+    const raw = payload.message as Record<string, unknown> | null;
+    const id =
+      raw && (typeof raw['id'] === 'string' || typeof raw['id'] === 'number') ? raw['id'] : null;
+    response = { jsonrpc: '2.0', id, error: { code: -32603, message: (error as Error).message } };
+  }
+  await tauriMcpRespond(payload.rid, JSON.stringify(response));
+}
+
+/** 按 mcpEnabled 同步 server 生命周期（启动/停止均幂等）。 */
+async function syncMcpServer(): Promise<void> {
+  if (platform !== 'tauri') return;
+  try {
+    if (config.userConfig.mcpEnabled) await tauriMcpStart();
+    else await tauriMcpStop();
+  } catch (error) {
+    logger.warn('MCP server 状态同步失败', error);
+    toast.warn(`${t('mcp.statusSyncFailed')}: ${(error as Error).message}`);
   }
 }
 
-async function handleMcpRequest(value: unknown): Promise<void> {
-  let requestId = 'unknown';
-  try {
-    const request = parseMcpRequest(value);
-    requestId = request.requestId;
-    const result = executeMcpTool(request.tool, request.arguments ?? {});
-    await emit('mcp_response', { requestId, ok: true, result });
-  } catch (error) {
-    await emit('mcp_response', { requestId, ok: false, error: (error as Error).message });
-  }
-}
-
-async function handleMcpRpcRequest(value: unknown): Promise<void> {
-  let response: ReturnType<typeof handleMcpRpcProtocol>;
-  try {
-    const request = parseMcpRpcRequest(value);
-    if (request.method === 'tools/call') {
-      const name = request.params?.['name'];
-      const args = request.params?.['arguments'];
-      if (typeof name !== 'string') throw new Error('tools/call 缺少 name');
-      if (
-        args !== undefined &&
-        (typeof args !== 'object' || args === null || Array.isArray(args))
-      ) {
-        throw new Error('tools/call arguments 必须是对象');
-      }
-      const result = executeMcpTool(name, (args as Record<string, unknown> | undefined) ?? {});
-      response = {
-        jsonrpc: '2.0',
-        id: request.id ?? null,
-        result: { content: [{ type: 'text', text: JSON.stringify(result) }] },
-      };
-    } else {
-      response = handleMcpRpcProtocol(request, createMcpContext(mindmap.doc));
-    }
-  } catch (error) {
-    response = {
-      jsonrpc: '2.0',
-      id: null,
-      error: { code: -32602, message: (error as Error).message },
-    };
-  }
-  await emit('mcp_rpc_response', response);
-}
+watch(
+  () => config.userConfig.mcpEnabled,
+  () => {
+    void syncMcpServer();
+  },
+);
 
 async function confirmDiscard(mindmap: ReturnType<typeof useMindmapStore>): Promise<boolean> {
   if (!mindmap.isDirty) return true;
@@ -276,12 +299,11 @@ onMounted(async () => {
       stopMenuListener = await listen<string>('menu_event', (event) => {
         void handleMenuEvent(event.payload);
       });
-      stopMcpListener = await listen<unknown>('mcp_request', (event) => {
-        void handleMcpRequest(event.payload);
+      stopMcpListener = await listen<{ rid: number; message: unknown }>('mcp-request', (event) => {
+        void handleMcpBridgeRequest(event.payload);
       });
-      stopMcpRpcListener = await listen<unknown>('mcp_rpc_request', (event) => {
-        void handleMcpRpcRequest(event.payload);
-      });
+      // 按用户设置启动 MCP server（幂等；关闭状态则清理残留发现文件）
+      void syncMcpServer();
       stopDragListener = await listen<{ paths: string[] }>('tauri://drag-drop', (event) => {
         const path = event.payload.paths[0];
         if (!path) return;
@@ -306,6 +328,7 @@ onMounted(async () => {
         });
         return typeof selected === 'string' ? selected : null;
       });
+      registerMcpStatusProvider(() => tauriMcpStatus());
       // 日志落盘 sink：仅当用户开启 ifSaveLogToDisk 时写盘（落盘内容不含 API key）。
       setLogSink((_level, line) => {
         if (config.userConfig.ifSaveLogToDisk) {
@@ -326,12 +349,12 @@ onBeforeUnmount(() => {
   stopCloseListener?.();
   stopDragListener?.();
   stopMcpListener?.();
-  stopMcpRpcListener?.();
   stopMenuListener = null;
   stopCloseListener = null;
   stopDragListener = null;
   stopMcpListener = null;
-  stopMcpRpcListener = null;
+  // 关窗清理：停掉 MCP server 并移除发现文件（幂等；失败只记日志）
+  void tauriMcpStop().catch((error: unknown) => logger.warn('MCP server 停止失败', error));
 });
 
 /** 全局快捷键：Mod+/ 跳转到快捷键说明页。 */

@@ -86,7 +86,12 @@ export function parseMindMapOps(value: unknown): MindMapOp[] | string {
   return ops;
 }
 
-function insertChild(parent: MindNode, text: string, note: string | undefined, newId: () => string): MindNode {
+function insertChild(
+  parent: MindNode,
+  text: string,
+  note: string | undefined,
+  newId: () => string,
+): MindNode {
   const node: MindNode = { id: newId(), text, children: [] };
   if (note !== undefined) node.note = note;
   parent.children.push(node);
@@ -98,11 +103,7 @@ function insertChild(parent: MindNode, text: string, note: string | undefined, n
  * 顺序执行：前面的 op 生效后的树作为后续 op 的执行环境。
  * 根节点不可删除（root 唯一性由调用方文档结构保证）。
  */
-export function applyOpsToDoc(
-  doc: MindDoc,
-  ops: MindMapOp[],
-  newId: () => string,
-): OpsApplyResult {
+export function applyOpsToDoc(doc: MindDoc, ops: MindMapOp[], newId: () => string): OpsApplyResult {
   const next = { root: cloneTree(doc.root), meta: doc.meta ? { ...doc.meta } : undefined };
   const results: OpResult[] = [];
   for (const op of ops) {

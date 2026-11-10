@@ -152,13 +152,13 @@ describe('core/tree', () => {
   });
 
   describe('createMcpContext', () => {
-    it('exposes the current markdown and supported mutation tools', () => {
+    it('exposes the current markdown and the new tool surface', () => {
       const root = createNode('Root');
       root.children.push(createNode('Child'));
       const context = createMcpContext({ root });
       expect(context.current.markdown).toContain('- Root');
       expect(context.current.nodeCount).toBe(2);
-      expect(context.tools.map((tool) => tool.name)).toContain('update_node');
+      expect(context.tools.map((tool) => tool.name)).toContain('apply_ops');
     });
   });
 

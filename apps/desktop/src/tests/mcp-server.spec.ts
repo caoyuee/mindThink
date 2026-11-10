@@ -60,7 +60,12 @@ describe('handleMcpServerRpc', () => {
 
   it('serves query_tree / get_node / search_nodes read tools', async () => {
     const q = await handleMcpServerRpc(
-      { jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'query_tree', arguments: {} } },
+      {
+        jsonrpc: '2.0',
+        id: 4,
+        method: 'tools/call',
+        params: { name: 'query_tree', arguments: {} },
+      },
       deps(),
     );
     const payload = JSON.parse(firstText(q));
@@ -68,7 +73,8 @@ describe('handleMcpServerRpc', () => {
     expect(payload.nodeCount).toBe(4);
     expect(payload.markdown).toContain('- A1');
 
-    const nodeId = Object.keys(fixedContext.nodes).find((id) => fixedContext.nodes[id]?.text === 'A') ?? '';
+    const nodeId =
+      Object.keys(fixedContext.nodes).find((id) => fixedContext.nodes[id]?.text === 'A') ?? '';
     const g = await handleMcpServerRpc(
       {
         jsonrpc: '2.0',

@@ -52,3 +52,29 @@ export async function chooseDirectory(): Promise<string | null> {
   if (dirPicker) return dirPicker();
   return null;
 }
+
+/**
+ * MCP server 状态查询（注册式分发，D5 阶段一）。
+ *
+ * - Web 端不注册实现 → mcpServerStatus() 永远返回 null（无 MCP 能力）
+ * - Tauri 端在 App.vue 注册实现（invoke 'mcp_status'，未运行同样返回 null）
+ */
+export interface McpServerStatus {
+  port: number;
+  token: string;
+}
+
+type McpStatusProvider = () => Promise<McpServerStatus | null>;
+
+let mcpStatusProvider: McpStatusProvider | null = null;
+
+/** 注册平台专属的 MCP server 状态查询实现（传 null 清空）。 */
+export function registerMcpStatusProvider(fn: McpStatusProvider | null): void {
+  mcpStatusProvider = fn;
+}
+
+/** 查询 MCP server 状态；未运行 / 平台不支持时返回 null。 */
+export async function mcpServerStatus(): Promise<McpServerStatus | null> {
+  if (mcpStatusProvider) return mcpStatusProvider();
+  return null;
+}

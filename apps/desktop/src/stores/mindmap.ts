@@ -26,6 +26,7 @@ import {
   generateLargeTree,
   searchNodes,
 } from '@/core/tree';
+import { applyOpsToDoc, type MindMapOp, type OpResult } from '@/core/ops';
 import { CommandStack, docOf } from '@/core/commands';
 import {
   saveFile,
@@ -444,6 +445,24 @@ export const useMindmapStore = defineStore('mindmap', () => {
     isDirty.value = true;
   }
 
+  /**
+   * MCP 外部写入（D5）：批准后的 ops 走命令栈落地。
+   * 一次调用 = 一个撤销单元；全部 op 失败时不产生空撤销记录。
+   * 注意：批准对话框是异步的，期间文档可能已被用户编辑——
+   * 因此 ops 必须在 applyEdit 闭包内对当时的文档重新应用，不得使用预计算的文档。
+   */
+  function applyExternalOps(ops: MindMapOp[]): { results: OpResult[]; appliedCount: number } {
+    const probe = applyOpsToDoc(doc.value, ops, newNodeId);
+    if (probe.appliedCount === 0) return { results: probe.results, appliedCount: 0 };
+    let applied = { results: probe.results, appliedCount: probe.appliedCount };
+    applyEdit((current) => {
+      const result = applyOpsToDoc(current, ops, newNodeId);
+      applied = { results: result.results, appliedCount: result.appliedCount };
+      return result.doc;
+    }, 'command.mcpApplyOps');
+    return applied;
+  }
+
   function loadFromMarkdown(md: string, path: string | null = null): void {
     // 优先用 markmap-lib 解析，能保留富文本
     try {
@@ -540,6 +559,7 @@ export const useMindmapStore = defineStore('mindmap', () => {
     search,
     loadFromKm,
     loadFromMarkdown,
+    applyExternalOps,
     loadBigTree,
     reset,
     select,

@@ -16,6 +16,10 @@ export interface UserConfig {
   defSavePath: string;
   /** 记录日志到磁盘 */
   ifSaveLogToDisk: boolean;
+  /** MCP server 开关（仅桌面端有实际能力；Web 端仅保持 schema 对齐） */
+  mcpEnabled: boolean;
+  /** MCP 写操作自动批准（仅桌面端有实际能力） */
+  mcpAutoApproveWrites: boolean;
   /** 最近文件最大数量 */
   recentMaxNum: number;
   /** 最近打开的文件路径，最新的排在前面 */
@@ -47,6 +51,8 @@ const DEFAULT_CONFIG: UserConfig = {
   ifSaveLogToDisk: false,
   recentMaxNum: 5,
   recentFiles: [],
+  mcpEnabled: false,
+  mcpAutoApproveWrites: false,
   backupKeepMax: 20,
 };
 
@@ -66,6 +72,9 @@ function loadConfig(): UserConfig {
         ? parsed.recentFiles.filter((path): path is string => typeof path === 'string')
         : [],
       backupKeepMax: normalizeBackupKeepMax(parsed.backupKeepMax),
+      mcpEnabled: typeof parsed.mcpEnabled === 'boolean' ? parsed.mcpEnabled : false,
+      mcpAutoApproveWrites:
+        typeof parsed.mcpAutoApproveWrites === 'boolean' ? parsed.mcpAutoApproveWrites : false,
     };
   } catch {
     return { ...DEFAULT_CONFIG };

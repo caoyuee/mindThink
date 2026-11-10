@@ -13,8 +13,8 @@ import {
 import { useUiStore } from '@/stores/ui';
 import { useToastStore } from '@/composables/useToast';
 import { setLocale, type AppLocale, SUPPORTED_LOCALES, LOCALE_LABELS } from '@/i18n';
-import { isTauri, chooseDirectory } from '@/platform';
-import { ref, watch } from 'vue';
+import { isTauri, chooseDirectory, mcpServerStatus, type McpServerStatus } from '@/platform';
+import { onMounted, ref, watch } from 'vue';
 
 const { t, locale } = useI18n();
 const config = useConfigStore();
@@ -46,6 +46,31 @@ async function chooseDefSavePath(): Promise<void> {
 /** 清除默认保存路径。 */
 function clearDefSavePath(): void {
   config.save({ defSavePath: '' });
+}
+
+// —— MCP server（仅桌面端；Web 端不注册能力，区块隐藏） ——
+const mcpInfo = ref<McpServerStatus | null>(null);
+
+onMounted(async () => {
+  if (!isTauri()) return;
+  mcpInfo.value = await mcpServerStatus();
+});
+
+/** 一键复制外部 MCP client 的接入命令。 */
+async function copyMcpCommand(): Promise<void> {
+  if (!mcpInfo.value) return;
+  const { port, token } = mcpInfo.value;
+  const command = [
+    'claude mcp add --transport http mindthink',
+    `http://127.0.0.1:${port}/mcp`,
+    `--header "Authorization: Bearer ${token}"`,
+  ].join(' ');
+  try {
+    await navigator.clipboard.writeText(command);
+    toast.success(t('settings.mcpCopied'));
+  } catch (error) {
+    toast.warn(`${t('toast.error')}: ${(error as Error).message}`);
+  }
 }
 </script>
 
@@ -135,6 +160,33 @@ function clearDefSavePath(): void {
       <input v-model="config.userConfig.ifSaveLogToDisk" type="checkbox" :disabled="!isTauri()" />
       <small v-if="isTauri()">{{ t('settings.saveLogsHint') }}</small>
       <small v-else>{{ t('settings.comingSoon') }}</small>
+    </section>
+
+    <!-- MCP server（仅桌面端）：启用即监听 loopback，token 每次启动轮换 -->
+    <section v-if="isTauri()" class="setting">
+      <label>{{ t('settings.mcp') }}</label>
+      <input v-model="config.userConfig.mcpEnabled" type="checkbox" />
+      <small>{{ t('settings.mcpHint') }}</small>
+      <template v-if="mcpInfo">
+        <div class="path-row">
+          <input
+            type="text"
+            readonly
+            :value="`http://127.0.0.1:${mcpInfo.port}/mcp`"
+            aria-label="MCP endpoint"
+          />
+          <button type="button" @click="copyMcpCommand">
+            {{ t('settings.mcpCopyCommand') }}
+          </button>
+        </div>
+        <small>{{ t('settings.mcpTokenHint') }}</small>
+      </template>
+    </section>
+
+    <section v-if="isTauri()" class="setting">
+      <label>{{ t('settings.mcpAutoApprove') }}</label>
+      <input v-model="config.userConfig.mcpAutoApproveWrites" type="checkbox" />
+      <small>{{ t('settings.mcpAutoApproveHint') }}</small>
     </section>
 
     <div class="actions">

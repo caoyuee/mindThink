@@ -111,7 +111,8 @@
     "outdentNode": "Outdent node",
     "reorderNode": "Reorder node",
     "addParent": "Insert parent node",
-    "pasteNode": "Paste node"
+    "pasteNode": "Paste node",
+    "mcpApplyOps": "Apply external MCP operations"
   },
   "shortcut": {
     "title": "Keyboard shortcuts",
@@ -179,7 +180,13 @@
     "saveLogsHint": "When enabled, warnings and errors are appended to logs/naotu.log under the user data directory",
     "save": "Save settings",
     "saved": "Settings saved",
-    "comingSoon": "This setting will be implemented in the desktop (Tauri) phase"
+    "comingSoon": "This setting will be implemented in the desktop (Tauri) phase",
+    "mcp": "Enable MCP server",
+    "mcpHint": "Loopback HTTP on 127.0.0.1 with a random port; external AI agents can read and (after approval) modify the current mindmap. Token rotates on every app start.",
+    "mcpCopyCommand": "Copy connect command",
+    "mcpTokenHint": "Token rotates when the app restarts. Paste the command into Claude Desktop / Cursor client config.",
+    "mcpAutoApprove": "Auto-approve MCP writes",
+    "mcpAutoApproveHint": "Off by default: external writes pop a confirmation dialog listing each change before applying"
   },
   "about": {
     "title": "About",
@@ -214,5 +221,13 @@
   "error": {
     "boundaryTitle": "Something went wrong",
     "boundaryHint": "The app hit an error. Try refreshing or clearing local storage."
+  },
+  "mcp": {
+    "approvalTitle": "MCP write request",
+    "approvalIntro": "An external agent wants to apply the following operations to the current mindmap:",
+    "approve": "Approve",
+    "reject": "Reject",
+    "rejectedReason": "User rejected this write",
+    "statusSyncFailed": "Failed to sync MCP server state"
   }
 }

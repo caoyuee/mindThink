@@ -87,8 +87,7 @@ async function handleToolsCall(
     }
     case 'search_nodes': {
       const query = args?.['query'];
-      if (typeof query !== 'string' || !query.trim())
-        return withId(errorResult('缺少 query'), id);
+      if (typeof query !== 'string' || !query.trim()) return withId(errorResult('缺少 query'), id);
       const needle = query.trim().toLowerCase();
       const hits = Object.values(context.nodes)
         .filter(
@@ -97,7 +96,12 @@ async function handleToolsCall(
             (node.note?.toLowerCase().includes(needle) ?? false),
         )
         .slice(0, 50)
-        .map((node) => ({ id: node.id, text: node.text, note: node.note, childIds: node.childIds }));
+        .map((node) => ({
+          id: node.id,
+          text: node.text,
+          note: node.note,
+          childIds: node.childIds,
+        }));
       return withId(jsonResult({ total: hits.length, hits }), id);
     }
     case 'export_markdown': {

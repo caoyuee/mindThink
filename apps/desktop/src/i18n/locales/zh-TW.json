@@ -111,7 +111,8 @@
     "outdentNode": "節點左縮排",
     "reorderNode": "重排節點",
     "addParent": "插入父節點",
-    "pasteNode": "貼上節點"
+    "pasteNode": "貼上節點",
+    "mcpApplyOps": "套用 MCP 外部操作"
   },
   "shortcut": {
     "title": "快捷鍵",
@@ -179,7 +180,13 @@
     "saveLogsHint": "開啟後，警告與錯誤記錄檔將追加寫入使用者資料目錄下的 logs/naotu.log",
     "save": "儲存設定",
     "saved": "設定已儲存",
-    "comingSoon": "此設定將在桌面端(Tauri)階段實作"
+    "comingSoon": "此設定將在桌面端(Tauri)階段實作",
+    "mcp": "啟用 MCP 伺服器",
+    "mcpHint": "本機 loopback HTTP（127.0.0.1 隨機連接埠）；外部 AI Agent 可讀取、並經批准後修改目前導圖。token 每次啟動輪替。",
+    "mcpCopyCommand": "複製接入命令",
+    "mcpTokenHint": "token 在應用程式重新啟動後輪替；把命令貼到 Claude Desktop / Cursor 等用戶端設定。",
+    "mcpAutoApprove": "MCP 寫入自動批准",
+    "mcpAutoApproveHint": "預設關閉：外部寫入會彈出確認對話框，逐條列出變更後才落盤"
   },
   "about": {
     "title": "關於",
@@ -214,5 +221,13 @@
   "error": {
     "boundaryTitle": "發生錯誤",
     "boundaryHint": "應用程式遇到錯誤。可以嘗試重新整理頁面或清除本機資料。"
+  },
+  "mcp": {
+    "approvalTitle": "MCP 寫入請求",
+    "approvalIntro": "外部 Agent 請求對目前導圖執行以下操作：",
+    "approve": "批准",
+    "reject": "拒絕",
+    "rejectedReason": "使用者拒絕了本次寫入",
+    "statusSyncFailed": "MCP 服務狀態同步失敗"
   }
 }

@@ -111,7 +111,8 @@
     "outdentNode": "Knoten ausrücken",
     "reorderNode": "Knoten umsortieren",
     "addParent": "Übergeordneten Knoten einfügen",
-    "pasteNode": "Knoten einfügen"
+    "pasteNode": "Knoten einfügen",
+    "mcpApplyOps": "Externe MCP-Operationen anwenden"
   },
   "shortcut": {
     "title": "Tastenkürzel",
@@ -179,7 +180,13 @@
     "saveLogsHint": "Bei Aktivierung werden Warnungen und Fehler an logs/naotu.log im Benutzerdaten-Verzeichnis angehängt",
     "save": "Einstellungen speichern",
     "saved": "Einstellungen gespeichert",
-    "comingSoon": "Diese Einstellung wird in der Desktop-Phase (Tauri) implementiert"
+    "comingSoon": "Diese Einstellung wird in der Desktop-Phase (Tauri) implementiert",
+    "mcp": "MCP-Server aktivieren",
+    "mcpHint": "Loopback-HTTP auf 127.0.0.1 mit zufälligem Port; externe KI-Agenten können die aktuelle Mindmap lesen und (nach Freigabe) ändern. Token rotiert bei jedem App-Start.",
+    "mcpCopyCommand": "Verbindungsbefehl kopieren",
+    "mcpTokenHint": "Token rotiert beim Neustart der App. Befehl in die Client-Konfiguration von Claude Desktop / Cursor einfügen.",
+    "mcpAutoApprove": "MCP-Schreibvorgänge automatisch freigeben",
+    "mcpAutoApproveHint": "Standardmäßig aus: externe Schreibvorgänge zeigen vor dem Übernehmen einen Bestätigungsdialog mit allen Änderungen"
   },
   "about": {
     "title": "Über",
@@ -214,5 +221,13 @@
   "error": {
     "boundaryTitle": "Ein Fehler ist aufgetreten",
     "boundaryHint": "Die App hat einen Fehler. Versuchen Sie, die Seite neu zu laden oder lokale Daten zu löschen."
+  },
+  "mcp": {
+    "approvalTitle": "MCP-Schreibanfrage",
+    "approvalIntro": "Ein externer Agent möchte folgende Operationen auf der aktuellen Mindmap ausführen:",
+    "approve": "Freigeben",
+    "reject": "Ablehnen",
+    "rejectedReason": "Benutzer hat diesen Schreibvorgang abgelehnt",
+    "statusSyncFailed": "MCP-Serverstatus konnte nicht synchronisiert werden"
   }
 }
