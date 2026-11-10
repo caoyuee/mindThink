@@ -101,11 +101,11 @@
 | ID | 任务 | 规模 | 依赖 | 状态 |
 |---|---|---|---|---|
 | M3-1 | `docs/mcp-live-design.md` 设计 gate 细化并确认 | 文档 | D5 | ⏳ |
-| M3-2 | loopback Streamable HTTP + 轮换 token + 发现文件 | 中-大 | M3-1 | 🔵 |
-| M3-3 | 写链路：Rust→窗口事件→ops 校验→diff 批准→回传 | 大 | M3-1, M2-1 | 🔵 |
-| M3-4 | 读链路实时化 + `query_tree/search/export_markdown` 工具 | 中 | M3-1 | 🔵 |
+| M3-2 | loopback Streamable HTTP + 轮换 token + 发现文件 | 中-大 | M3-1 | ✅（2026-11-10，mcp_server.rs） |
+| M3-3 | 写链路：Rust→窗口事件→ops 校验→diff 批准→回传 | 大 | M3-1, M2-1 | ✅（2026-11-10，ops.ts + 批准对话框，单窗口） |
+| M3-4 | 读链路实时化 + `query_tree/search/export_markdown` 工具 | 中 | M3-1 | ✅（2026-11-10，mcp-server.ts） |
 | M3-5 | 多窗口目标选择规则 + 错误码 | 中 | M3-3 | 🔵 |
-| M3-6 | `docs/mcp-clients.md` + 一键复制 `mcp add` 命令 | 小 | M3-2 | 🔵 |
+| M3-6 | `docs/mcp-clients.md` + 一键复制 `mcp add` 命令 | 小 | M3-2 | ✅（2026-11-10，设置页） |
 
 **M3 总验收**：Claude Desktop 端到端读写演示（写操作弹 diff 批准）。
 

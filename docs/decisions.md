@@ -88,15 +88,17 @@ mindThink/
 
 ---
 
-## D5 · MCP：Server 实时化 → 双向化 ⏳
+## D5 · MCP：Server 实时化 → 双向化 🟡（阶段一已实施 2026-11-10，阶段二未开始）
 
-**阶段一（M3）：Server 实时桥接**
-- 拓扑：Tauri 主进程内嵌 loopback Streamable HTTP listener，`127.0.0.1:随机端口`，端口+token 写入 userData 发现文件。
-- 鉴权：Bearer token，每次启动轮换；未带/错 token → 401/403。
-- 写链路（红线）：Rust 收 `tools/call` → emit 到目标窗口（focused 优先，其次唯一文档窗口，否则返回错误码）→ ops 校验 → **diff 预览用户批准**（默认 fail-closed）→ 结果回传。
-- 读链路：`resources/read` 实时生成（复用 `createMcpContext(doc)`），废弃启动快照。
-- 工具面：读类 `query_tree/get_node/search` + 写类 `apply_ops`（与 D4 L2 共用同一 ops schema）+ `export_markdown`。
-- 交付 `docs/mcp-clients.md`：Claude Desktop / Cursor / Cline 配置示例 + 一键复制 `mcp add` 命令。
+**阶段一（M3）：Server 实时桥接**（✅ 已实施：架构为「Rust 纯传输层 + webview 协议层」，见下）
+- 拓扑：Tauri 主进程内嵌 loopback Streamable HTTP listener（JSON 变体：notification 回 202），`127.0.0.1:随机端口`，端口+token 写入 userData/mcp-discovery.json。
+- 鉴权：Bearer token（/dev/urandom），每次启动轮换；未带/错 token → 401；Host 头校验防 DNS rebinding。
+- 分层（实施落地）：Rust（`src-tauri/src/mcp_server.rs`）只做传输 + 鉴权 + 桥接（emit `mcp-request` ↔ invoke `mcp_respond`，30s 超时）；协议与业务全部在 webview（`packages/core/src/core/mcp-server.ts` 的 `handleMcpServerRpc` + `core/ops.ts` 的 MindMapOp schema）。
+- 写链路（红线）：`tools/call: apply_ops` → ops 校验（≤100 条/批）→ **批准对话框逐条列出（fail-closed，可设置自动批准）** → 命令栈一次落盘（一个撤销单元）→ 结果回传。
+- 读链路：`tools/list` / `resources/read` 复用 `createMcpContext(doc)` 实时生成，无快照。
+- 工具面：读类 `query_tree/get_node/search_nodes/export_markdown` + 写类 `apply_ops`（MindMapOp schema，D4 L2 未来复用同一 schema）。
+- 交付 `docs/mcp-clients.md`：Claude Desktop / Cursor / Cline 配置示例 + 一键复制 `mcp add` 命令（设置页）。
+- Rust 验证：`src-tauri/src/mcp_server.rs` 单测 9 个（token/401/403/404/桥接/202/400），待本机 `cargo test` 确认。
 
 **阶段二（M4）：Client 方向**
 - 设置页挂外部 MCP server（stdio 经 Rust 子进程 / streamable HTTP）。
