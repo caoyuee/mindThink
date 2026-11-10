@@ -158,20 +158,6 @@
     "saveMindmap": "Mindmap speichern",
     "openMindmap": "Mindmap öffnen"
   },
-  "ai": {
-    "title": "KI-Assistent",
-    "prompt": "Frage oder Strukturierungswunsch eingeben",
-    "defaultPrompt": "Bitte verbessere die Struktur dieser Mindmap und nenne fehlende Themen",
-    "ask": "KI fragen",
-    "loading": "Anfrage läuft…",
-    "cancel": "Anfrage abbrechen",
-    "cancelled": "KI-Anfrage abgebrochen",
-    "timeout": "Zeitüberschreitung der KI-Anfrage. Bitte später erneut versuchen",
-    "configureFirst": "Zuerst KI-Endpunkt und Modell in den Einstellungen konfigurieren",
-    "applyNote": "Vorschlag als Notiz des aktuellen Knotens anwenden",
-    "expand": "KI-Assistent öffnen",
-    "collapse": "KI-Assistent schließen"
-  },
   "settings": {
     "title": "Einstellungen",
     "language": "Oberflächensprache",
@@ -191,11 +177,6 @@
     "savePathHint": "Das Speichern-Dialogfeld für neue Dokumente öffnet dieses Verzeichnis standardmäßig",
     "saveLogs": "Protokolle auf Festplatte speichern",
     "saveLogsHint": "Bei Aktivierung werden Warnungen und Fehler an logs/naotu.log im Benutzerdaten-Verzeichnis angehängt",
-    "aiEndpoint": "AI-Endpunkt",
-    "aiEndpointPlaceholder": "https://api.example.com/v1",
-    "aiModel": "AI-Modell",
-    "aiModelPlaceholder": "model-name",
-    "aiApiKey": "AI-API-Schlüssel",
     "save": "Einstellungen speichern",
     "saved": "Einstellungen gespeichert",
     "comingSoon": "Diese Einstellung wird in der Desktop-Phase (Tauri) implementiert"

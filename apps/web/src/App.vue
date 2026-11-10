@@ -6,7 +6,6 @@ import AppStatusBar from '@/components/layout/AppStatusBar.vue';
 import Toast from '@/components/common/Toast.vue';
 import DialogHost from '@/components/dialogs/DialogHost.vue';
 import { useUiStore } from '@/stores/ui';
-import AiAssistant from '@/components/panels/AiAssistant.vue';
 
 const ui = useUiStore();
 const router = useRouter();
@@ -44,7 +43,6 @@ onBeforeUnmount(() => {
       <RouterView />
     </main>
     <AppStatusBar />
-    <AiAssistant />
     <Toast />
     <DialogHost />
   </div>

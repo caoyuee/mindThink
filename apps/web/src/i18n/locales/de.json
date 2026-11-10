@@ -153,20 +153,6 @@
     "saveMindmap": "Mindmap",
     "openMindmap": "Mindmap"
   },
-  "ai": {
-    "title": "KI-Assistent",
-    "prompt": "Frage oder Strukturierungswunsch eingeben",
-    "defaultPrompt": "Bitte verbessere die Struktur dieser Mindmap und nenne fehlende Themen",
-    "ask": "KI fragen",
-    "loading": "Anfrage läuft…",
-    "cancel": "Anfrage abbrechen",
-    "cancelled": "KI-Anfrage abgebrochen",
-    "timeout": "Zeitüberschreitung der KI-Anfrage. Bitte später erneut versuchen",
-    "configureFirst": "Zuerst KI-Endpunkt und Modell in den Einstellungen konfigurieren",
-    "applyNote": "Vorschlag als Notiz des aktuellen Knotens anwenden",
-    "expand": "KI-Assistent öffnen",
-    "collapse": "KI-Assistent schließen"
-  },
   "settings": {
     "title": "Einstellungen",
     "language": "Oberflächensprache",

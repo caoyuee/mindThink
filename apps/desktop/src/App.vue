@@ -17,7 +17,6 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import AppHeader from '@/components/layout/AppHeader.vue';
 import AppStatusBar from '@/components/layout/AppStatusBar.vue';
-import AiAssistant from '@/components/panels/AiAssistant.vue';
 import Toast from '@/components/common/Toast.vue';
 import DialogHost from '@/components/dialogs/DialogHost.vue';
 import { useUiStore } from '@/stores/ui';
@@ -366,7 +365,6 @@ onBeforeUnmount(() => {
       <RouterView />
     </main>
     <AppStatusBar />
-    <AiAssistant />
     <Toast />
     <DialogHost />
   </div>

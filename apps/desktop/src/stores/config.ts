@@ -22,12 +22,6 @@ export interface UserConfig {
   recentFiles: string[];
   /** 备份文件保留份数（M0-3） */
   backupKeepMax: number;
-  /** OpenAI-compatible AI endpoint */
-  aiEndpoint: string;
-  /** AI model identifier */
-  aiModel: string;
-  /** API key kept in local app configuration */
-  aiApiKey: string;
 }
 
 const CONFIG_KEY = 'user.config';
@@ -54,9 +48,6 @@ const DEFAULT_CONFIG: UserConfig = {
   recentMaxNum: 5,
   recentFiles: [],
   backupKeepMax: 20,
-  aiEndpoint: '',
-  aiModel: '',
-  aiApiKey: '',
 };
 
 function loadConfig(): UserConfig {
@@ -72,9 +63,6 @@ function loadConfig(): UserConfig {
       ifSaveLogToDisk: typeof parsed.ifSaveLogToDisk === 'boolean' ? parsed.ifSaveLogToDisk : false,
       recentMaxNum: normalizeRecentMaxNum(parsed.recentMaxNum),
       backupKeepMax: normalizeBackupKeepMax(parsed.backupKeepMax),
-      aiEndpoint: typeof parsed.aiEndpoint === 'string' ? parsed.aiEndpoint : '',
-      aiModel: typeof parsed.aiModel === 'string' ? parsed.aiModel : '',
-      aiApiKey: typeof parsed.aiApiKey === 'string' ? parsed.aiApiKey : '',
       recentFiles: Array.isArray(parsed.recentFiles)
         ? parsed.recentFiles.filter((path): path is string => typeof path === 'string')
         : [],

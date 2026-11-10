@@ -153,20 +153,6 @@
     "saveMindmap": "Markdown 思维导图",
     "openMindmap": "Markdown 思维导图"
   },
-  "ai": {
-    "title": "AI 助手",
-    "prompt": "输入你的问题或整理要求",
-    "defaultPrompt": "请帮我完善这个脑图的结构，并指出缺失的主题",
-    "ask": "询问 AI",
-    "loading": "请求中…",
-    "cancel": "取消请求",
-    "cancelled": "AI 请求已取消",
-    "timeout": "AI 请求超时，请稍后重试",
-    "configureFirst": "请先在设置中配置 AI 接口和模型",
-    "applyNote": "将建议写入当前节点备注",
-    "expand": "展开 AI 助手",
-    "collapse": "折叠 AI 助手"
-  },
   "settings": {
     "title": "设置",
     "language": "界面语言",
@@ -186,11 +172,6 @@
     "savePathHint": "新文档保存对话框将默认打开此目录",
     "saveLogs": "保存日志到磁盘",
     "saveLogsHint": "开启后，警告与错误日志将追加写入用户数据目录下的 logs/naotu.log",
-    "aiEndpoint": "AI 接口地址",
-    "aiEndpointPlaceholder": "https://api.example.com/v1",
-    "aiModel": "AI 模型",
-    "aiModelPlaceholder": "model-name",
-    "aiApiKey": "AI API 密钥",
     "save": "保存设置",
     "saved": "设置已保存",
     "comingSoon": "该设置将在桌面端(Tauri)阶段实现"

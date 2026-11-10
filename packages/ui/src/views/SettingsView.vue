@@ -131,29 +131,6 @@ function clearDefSavePath(): void {
     </section>
 
     <section class="setting">
-      <label>{{ t('settings.aiEndpoint') }}</label>
-      <input
-        v-model="config.userConfig.aiEndpoint"
-        type="text"
-        :placeholder="t('settings.aiEndpointPlaceholder')"
-      />
-    </section>
-
-    <section class="setting">
-      <label>{{ t('settings.aiModel') }}</label>
-      <input
-        v-model="config.userConfig.aiModel"
-        type="text"
-        :placeholder="t('settings.aiModelPlaceholder')"
-      />
-    </section>
-
-    <section class="setting">
-      <label>{{ t('settings.aiApiKey') }}</label>
-      <input v-model="config.userConfig.aiApiKey" type="password" />
-    </section>
-
-    <section class="setting">
       <label>{{ t('settings.saveLogs') }}</label>
       <input v-model="config.userConfig.ifSaveLogToDisk" type="checkbox" :disabled="!isTauri()" />
       <small v-if="isTauri()">{{ t('settings.saveLogsHint') }}</small>
