@@ -143,6 +143,71 @@ export function parseMcpRpcRequest(value: unknown): McpRpcRequest {
   };
 }
 
+/** MCP 工具面（D5 阶段一）：读类 + apply_ops 写类。定义在此避免与 mcp-server 循环依赖。 */
+export const MCP_TOOL_DESCRIPTORS: McpToolDescriptor[] = [
+  {
+    name: 'query_tree',
+    description: 'Read the whole current mindmap: title, node count and Markdown tree.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
+    name: 'get_node',
+    description: 'Read one node (id, text, note, childIds) by id.',
+    inputSchema: {
+      type: 'object',
+      properties: { nodeId: { type: 'string' } },
+      required: ['nodeId'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'search_nodes',
+    description: 'Search nodes by keyword in text or note (case-insensitive).',
+    inputSchema: {
+      type: 'object',
+      properties: { query: { type: 'string' } },
+      required: ['query'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'export_markdown',
+    description: 'Export the current mindmap as Markdown text.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
+    name: 'apply_ops',
+    description:
+      'Apply structured mindmap operations (add_child/add_sibling/update_node/delete_node). ' +
+      'Subject to user approval in the app (fail-closed). One call = one undo unit.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ops: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              op: {
+                type: 'string',
+                enum: ['add_child', 'add_sibling', 'update_node', 'delete_node'],
+              },
+              parentId: { type: 'string' },
+              siblingId: { type: 'string' },
+              nodeId: { type: 'string' },
+              text: { type: 'string' },
+              note: { type: ['string', 'null'] },
+            },
+            required: ['op'],
+          },
+        },
+      },
+      required: ['ops'],
+      additionalProperties: false,
+    },
+  },
+];
+
 /** 处理不涉及写操作的 MCP JSON-RPC 方法。 */
 export function handleMcpRpcRequest(request: McpRpcRequest, context: McpContext): McpRpcResponse {
   const id = request.id ?? null;
@@ -154,7 +219,7 @@ export function handleMcpRpcRequest(request: McpRpcRequest, context: McpContext)
           id,
           result: {
             protocolVersion: '2024-11-05',
-            serverInfo: { name: 'DesktopNaotu', version: '0.1.0' },
+            serverInfo: { name: 'mindThink', version: '0.1.0' },
             capabilities: { resources: {}, tools: {} },
           },
         };
@@ -233,33 +298,7 @@ export function createMcpContext(doc: MindDoc): McpContext {
       { uri: 'mindmap://current', name: 'Current mindmap', mimeType: 'text/markdown' },
       { uri: 'mindmap://node/{id}', name: 'Mindmap node', mimeType: 'application/json' },
     ],
-    tools: [
-      {
-        name: 'get_current_mindmap',
-        description: 'Read the current mindmap as Markdown.',
-        inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-      },
-      {
-        name: 'update_node',
-        description: 'Update a node through the application command stack.',
-        inputSchema: {
-          type: 'object',
-          properties: { id: { type: 'string' }, text: { type: 'string' } },
-          required: ['id', 'text'],
-          additionalProperties: false,
-        },
-      },
-      {
-        name: 'add_node',
-        description: 'Add a child node through the application command stack.',
-        inputSchema: {
-          type: 'object',
-          properties: { parentId: { type: 'string' }, text: { type: 'string' } },
-          required: ['parentId', 'text'],
-          additionalProperties: false,
-        },
-      },
-    ],
+    tools: MCP_TOOL_DESCRIPTORS.map((tool) => ({ ...tool })),
     current: {
       title: doc.root.text,
       markdown: markdown(doc.root),
