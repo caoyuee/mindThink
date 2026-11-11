@@ -11,9 +11,9 @@ mod commands;
 pub mod mcp_server;
 
 use commands::{
-    append_text_file, copy_file, delete_files, exit_app, file_exists, get_app_version,
-    get_user_data_dir, list_backup_files, open_url, read_text_file, rebuild_native_menu,
-    show_in_folder, write_binary_file, write_text_file,
+    append_text_file, copy_file, delete_files, exit_app, file_exists, get_user_data_dir,
+    list_backup_files, open_url, read_text_file, rebuild_native_menu, show_in_folder,
+    write_binary_file, write_text_file,
 };
 use mcp_server::{mcp_respond, mcp_start, mcp_status, mcp_stop};
 use tauri::menu::{AboutMetadataBuilder, MenuBuilder, MenuItemBuilder, SubmenuBuilder};
@@ -53,7 +53,6 @@ pub fn run() {
             show_in_folder,
             open_url,
             exit_app,
-            get_app_version,
             rebuild_native_menu,
             mcp_start,
             mcp_stop,

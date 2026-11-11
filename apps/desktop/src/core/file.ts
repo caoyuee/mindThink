@@ -181,7 +181,6 @@ export const fileApi = {
   showInFolder: tauri.tauriShowInFolder,
   openUrl: tauri.tauriOpenUrl,
   getUserDataDir: tauri.tauriGetUserDataDir,
-  getAppVersion: tauri.tauriGetAppVersion,
   exit: tauri.tauriExit,
 } as const;
 

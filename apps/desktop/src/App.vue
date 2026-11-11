@@ -26,7 +26,6 @@ import { useDialog } from '@/composables/useDialog';
 import { useI18n } from 'vue-i18n';
 import { setLocale, type AppLocale } from '@/i18n';
 import { detectPlatform, registerDirPicker, registerMcpStatusProvider } from '@/platform';
-import { fileApi } from '@/core/file';
 import { createMcpContext, parseMcpRpcRequest } from '@/core/mcp';
 import { handleMcpServerRpc, type ApplyOpsOutcome, type McpServerDeps } from '@/core/mcp-server';
 import type { MindMapOp } from '@/core/ops';
@@ -331,8 +330,6 @@ onMounted(async () => {
           if (canOpen) void mindmap.openRecent(path);
         });
       });
-      const version = await fileApi.getAppVersion();
-      toast.info(`${t('app.name')} v${version} (Tauri)`, 5000);
       // 覆盖 Rust 启动时的默认英文菜单, 让菜单跟随当前 UI 语言。
       rebuildMenu();
 

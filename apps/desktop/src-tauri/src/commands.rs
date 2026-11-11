@@ -435,14 +435,6 @@ pub fn exit_app(app: tauri::AppHandle) {
 }
 
 /**
- * 获取应用版本
- */
-#[tauri::command]
-pub fn get_app_version(app: tauri::AppHandle) -> String {
-    app.package_info().version.to_string()
-}
-
-/**
  * 用前端按当前语言生成的结构化 spec 重建系统原生菜单。
  *
  * 前端在 mount 后调用一次以覆盖默认英文菜单，语言切换时再次调用，
