@@ -47,7 +47,7 @@ export const router = createRouter({
 
 router.afterEach((to) => {
   if (typeof document !== 'undefined') {
-    const baseTitle = 'DesktopNaotu';
+    const baseTitle = 'mindThink';
     document.title = to.meta['title'] ? `${to.meta['title']} · ${baseTitle}` : baseTitle;
   }
 });

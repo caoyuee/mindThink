@@ -8,6 +8,9 @@ pnpm-lock.yaml
 *.log
 *.timestamp-*.mjs
 
+# SVG assets (prettier has no svg parser)
+*.svg
+
 # Tauri / Rust generated files
 **/src-tauri/target/
 **/src-tauri/gen/

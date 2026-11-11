@@ -27,7 +27,7 @@ function isActive(name: string): boolean {
 <template>
   <header class="app-header">
     <div class="brand">
-      <span class="logo">🧠</span>
+      <img class="logo" src="/logo.svg" alt="" />
       <strong>{{ t('app.name') }}</strong>
     </div>
 
@@ -78,7 +78,10 @@ function isActive(name: string): boolean {
   gap: 8px;
 }
 .logo {
-  font-size: 18px;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: block;
 }
 .nav {
   display: flex;

@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "桌面版脑图",
+    "name": "灵犀导图",
     "tagline": "本地优先、开源、AI 原生的脑图工具",
     "tauriStartupFailed": "Tauri 启动信息获取失败"
   },

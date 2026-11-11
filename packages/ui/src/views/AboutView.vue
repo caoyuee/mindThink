@@ -26,8 +26,8 @@ const { t } = useI18n();
     <section>
       <h2>{{ t('about.github') }}</h2>
       <p>
-        <a href="https://github.com/NaoTu/DesktopNaotu" target="_blank" rel="noopener"
-          >github.com/NaoTu/DesktopNaotu</a
+        <a href="https://github.com/caoyuee/mindThink" target="_blank" rel="noopener"
+          >github.com/caoyuee/mindThink</a
         >
       </p>
     </section>
