@@ -5,9 +5,9 @@
  * - /           → EditorView（默认, 重定向）
  * - /editor     → EditorView
  * - /settings   → SettingsView
- * - /shortcuts  → ShortcutsView
  * - /about      → AboutView
  * - /:pathMatch(.*)* → NotFoundView
+ * （快捷键不再是路由页：ShortcutsDialog 弹窗，由 ui store 的 shortcutsOpen 驱动）
  */
 
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
@@ -25,12 +25,6 @@ const routes: RouteRecordRaw[] = [
     name: 'settings',
     component: () => import('@/views/SettingsView.vue'),
     meta: { title: 'Settings' },
-  },
-  {
-    path: '/shortcuts',
-    name: 'shortcuts',
-    component: () => import('@/views/ShortcutsView.vue'),
-    meta: { title: 'Shortcuts' },
   },
   {
     path: '/about',

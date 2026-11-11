@@ -1,16 +1,15 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
 import AppHeader from '@/components/layout/AppHeader.vue';
 import AppStatusBar from '@/components/layout/AppStatusBar.vue';
 import Toast from '@/components/common/Toast.vue';
 import DialogHost from '@/components/dialogs/DialogHost.vue';
+import ShortcutsDialog from '@/components/dialogs/ShortcutsDialog.vue';
 import { useUiStore } from '@/stores/ui';
 
 const ui = useUiStore();
-const router = useRouter();
 
-/** 全局快捷键：Mod+/ 跳转到快捷键说明页。 */
+/** 全局快捷键：Mod+/ 打开快捷键弹窗。 */
 function onGlobalKeydown(e: KeyboardEvent): void {
   if (e.key !== '/') return;
   const mod = navigator.platform.includes('Mac') ? e.metaKey : e.ctrlKey;
@@ -23,7 +22,7 @@ function onGlobalKeydown(e: KeyboardEvent): void {
     return;
   }
   e.preventDefault();
-  void router.push('/shortcuts');
+  ui.openShortcuts();
 }
 
 onMounted(() => {
@@ -45,6 +44,7 @@ onBeforeUnmount(() => {
     <AppStatusBar />
     <Toast />
     <DialogHost />
+    <ShortcutsDialog :open="ui.shortcutsOpen" @close="ui.closeShortcuts()" />
   </div>
 </template>
 

@@ -1,11 +1,11 @@
 /**
  * 快捷键注册表
  *
- * ShortcutsView 与 useShortcuts 共用此模块，避免"显示的快捷键"和"实际绑定"
+ * ShortcutsDialog 与 useShortcuts 共用此模块，避免"显示的快捷键"和"实际绑定"
  * 两边数据漂移。
  *
  * 用法:
- *   - ShortcutsView 直接读 SHORTCUT_REGISTRY + SHORTCUT_SECTIONS 渲染。
+ *   - ShortcutsDialog 直接读 SHORTCUT_REGISTRY + SHORTCUT_SECTIONS 渲染。
  *   - useShortcuts.bindById(handlers) 按 id 把 handler 展开为可识别格式。
  *
  * 每条 entry:
@@ -77,6 +77,14 @@ export const SHORTCUT_REGISTRY: ShortcutEntry[] = [
     section: 'node',
     descKey: 'shortcut.insertSibling',
     keys: [['Enter']],
+    status: 'ready',
+  },
+  {
+    id: 'insertChild',
+    section: 'node',
+    descKey: 'shortcut.insertChild',
+    // Insert = 脑图工具经典约定；与 Tab(缩进)/Enter(兄弟)/F2(父) 互不冲突
+    keys: [['Insert']],
     status: 'ready',
   },
   {

@@ -17,6 +17,7 @@ import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import AppStatusBar from '@/components/layout/AppStatusBar.vue';
 import Toast from '@/components/common/Toast.vue';
 import DialogHost from '@/components/dialogs/DialogHost.vue';
+import ShortcutsDialog from '@/components/dialogs/ShortcutsDialog.vue';
 import { useUiStore } from '@/stores/ui';
 import { useMindmapStore } from '@/stores/mindmap';
 import { useConfigStore } from '@/stores/config';
@@ -204,7 +205,10 @@ async function handleMenuEvent(id: string): Promise<void> {
   }
   // 原生「导航」子菜单：`nav:<route>` 替代被移除的 AppHeader 顶部标签页
   if (id.startsWith('nav:')) {
-    await router.push(`/${id.slice('nav:'.length)}`);
+    const target = id.slice('nav:'.length);
+    // 快捷键不再是路由页，打开弹窗
+    if (target === 'shortcuts') ui.openShortcuts();
+    else await router.push(`/${target}`);
     return;
   }
   try {
@@ -369,7 +373,7 @@ onBeforeUnmount(() => {
   void tauriMcpStop().catch((error: unknown) => logger.warn('MCP server 停止失败', error));
 });
 
-/** 全局快捷键：Mod+/ 跳转到快捷键说明页。 */
+/** 全局快捷键：Mod+/ 打开快捷键弹窗。 */
 function onGlobalKeydown(e: KeyboardEvent): void {
   if (e.key !== '/') return;
   const mod = navigator.platform.includes('Mac') ? e.metaKey : e.ctrlKey;
@@ -382,7 +386,7 @@ function onGlobalKeydown(e: KeyboardEvent): void {
     return;
   }
   e.preventDefault();
-  void router.push('/shortcuts');
+  ui.openShortcuts();
 }
 
 onMounted(() => {
@@ -401,6 +405,7 @@ onBeforeUnmount(() => {
     <AppStatusBar />
     <Toast />
     <DialogHost />
+    <ShortcutsDialog :open="ui.shortcutsOpen" @close="ui.closeShortcuts()" />
   </div>
 </template>
 

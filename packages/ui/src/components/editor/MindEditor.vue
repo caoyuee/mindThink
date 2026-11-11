@@ -295,6 +295,10 @@ onMounted(() => {
     addSibling: () => {
       if (store.selectedId) store.addSibling(store.selectedId, t('node.defaultName'));
     },
+    insertChild: () => {
+      // 未选中节点时 fallback 到根节点（与 Toolbar.addChildToSelection 一致）
+      store.addChild(store.selectedId ?? store.doc.root.id, t('node.defaultName'));
+    },
     addParent: () => {
       if (store.selectedId) store.addParent(store.selectedId, t('node.defaultName'));
     },

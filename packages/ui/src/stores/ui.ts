@@ -29,6 +29,17 @@ function detectInitialTheme(): Theme {
 export const useUiStore = defineStore('ui', () => {
   const theme = ref<Theme>(detectInitialTheme());
 
+  // 快捷键弹窗（原 /shortcuts 整页，两端共用一个开关）
+  const shortcutsOpen = ref(false);
+
+  function openShortcuts(): void {
+    shortcutsOpen.value = true;
+  }
+
+  function closeShortcuts(): void {
+    shortcutsOpen.value = false;
+  }
+
   // 持久化 & DOM 同步
   watch(
     theme,
@@ -51,5 +62,5 @@ export const useUiStore = defineStore('ui', () => {
     theme.value = t;
   }
 
-  return { theme, toggleTheme, setTheme };
+  return { theme, toggleTheme, setTheme, shortcutsOpen, openShortcuts, closeShortcuts };
 });

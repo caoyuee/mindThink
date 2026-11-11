@@ -1,7 +1,7 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createI18n } from 'vue-i18n';
-import ShortcutsView from '@/views/ShortcutsView.vue';
+import ShortcutsDialog from '@/components/dialogs/ShortcutsDialog.vue';
 import { SHORTCUT_REGISTRY } from '@/core/shortcuts';
 import {
   matchModifier,
@@ -56,57 +56,88 @@ const i18n = createI18n({
   // 关掉警告避免 stderr 噪音。
   silentTranslationWarn: true,
   messages: {
-    'zh-CN': { shortcut: shortcutMessages },
-    zh: { shortcut: shortcutMessages },
+    'zh-CN': { shortcut: shortcutMessages, common: { close: '关闭' } },
+    zh: { shortcut: shortcutMessages, common: { close: '关闭' } },
   },
 });
 
 function mountView() {
-  return mount(ShortcutsView, {
+  // ShortcutsDialog 把内容 Teleport 到 body，断言一律走 document 查询
+  return mount(ShortcutsDialog, {
+    props: { open: true },
     global: { plugins: [i18n] },
   });
 }
 
-describe('ShortcutsView', () => {
+function byTestId(id: string): HTMLElement | null {
+  return document.querySelector(`[data-testid="${id}"]`);
+}
+
+describe('ShortcutsDialog', () => {
   it('renders all 4 sections (history, node, scope, layout)', () => {
-    const groups = mountView().findAll('[data-testid="shortcut-group"]');
+    mountView();
+    const groups = document.querySelectorAll('[data-testid="shortcut-group"]');
     expect(groups.length).toBe(4);
   });
 
   it('renders every registry entry as a row', () => {
-    const wrapper = mountView();
-    const rows = wrapper.findAll('[data-shortcut-id]');
+    mountView();
+    const rows = document.querySelectorAll('[data-shortcut-id]');
     expect(rows.length).toBe(SHORTCUT_REGISTRY.length);
   });
 
   it('marks todo entries with the todo tag and data-status', () => {
-    const wrapper = mountView();
-    const todoRow = wrapper.find('[data-shortcut-id="bold"]');
-    expect(todoRow.attributes('data-status')).toBe('todo');
-    expect(todoRow.find('[data-testid="todo-tag"]').exists()).toBe(true);
-    const readyRow = wrapper.find('[data-shortcut-id="undo"]');
-    expect(readyRow.attributes('data-status')).toBe('ready');
-    expect(readyRow.find('[data-testid="todo-tag"]').exists()).toBe(false);
+    mountView();
+    const todoRow = document.querySelector('[data-shortcut-id="bold"]');
+    expect(todoRow?.getAttribute('data-status')).toBe('todo');
+    expect(todoRow?.querySelector('[data-testid="todo-tag"]')).not.toBeNull();
+    const readyRow = document.querySelector('[data-shortcut-id="undo"]');
+    expect(readyRow?.getAttribute('data-status')).toBe('ready');
+    expect(readyRow?.querySelector('[data-testid="todo-tag"]')).toBeNull();
   });
 
   it('renders <kbd> for each key segment', () => {
-    const wrapper = mountView();
-    const kbds = wrapper.findAll('kbd');
+    mountView();
+    const kbds = document.querySelectorAll('kbd');
     expect(kbds.length).toBeGreaterThan(0);
   });
 
-  // C3: 每个 descKey 都必须能在 mock i18n 中命中，否则 ShortcutsView 会显示原始 key
+  it('close button and backdrop click emit close', async () => {
+    const wrapper = mountView();
+    byTestId('shortcuts-close')?.click();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('close')).toHaveLength(1);
+    document
+      .querySelector<HTMLElement>('[data-testid="shortcuts-backdrop"]')
+      ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await wrapper.vm.$nextTick();
+    // click.self 才触发：backdrop 自身命中
+    expect(wrapper.emitted('close')).toHaveLength(2);
+  });
+
+  it('Escape key emits close (listener attached when open toggles on)', async () => {
+    const wrapper = mount(ShortcutsDialog, {
+      props: { open: false },
+      global: { plugins: [i18n] },
+    });
+    await wrapper.setProps({ open: true });
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await wrapper.vm.$nextTick();
+    expect(wrapper.emitted('close')).toHaveLength(1);
+  });
+
+  // C3: 每个 descKey 都必须能在 mock i18n 中命中，否则 ShortcutsDialog 会显示原始 key
   // 文本（如 "shortcut.layoutInOrder"）。本测试把 registry 中所有 descKey 全部遍历一遍。
   it('every registry descKey resolves to a non-key text (no "shortcut.xxx" leak)', () => {
-    const wrapper = mountView();
-    const html = wrapper.html();
+    mountView();
+    const html = document.body.innerHTML;
     // registry 涉及的 shortcut.* 键不能以原始字符串形式出现在 th 文本中
     for (const entry of SHORTCUT_REGISTRY) {
       const keyLeak = entry.descKey;
       // 找到对应行，断言它文本里不包含 "shortcut.xxx" 这类原始 key
-      const row = wrapper.find(`[data-shortcut-id="${entry.id}"]`);
-      expect(row.exists()).toBe(true);
-      const thText = row.find('th').text();
+      const row = document.querySelector(`[data-shortcut-id="${entry.id}"]`);
+      expect(row).not.toBeNull();
+      const thText = row?.querySelector('th')?.textContent ?? '';
       expect(thText, `${entry.id} leaked raw key ${keyLeak}`).not.toContain(keyLeak);
     }
     // 同时确保 layoutInOrder 已被删除（registry 不再含此 id）
@@ -114,6 +145,11 @@ describe('ShortcutsView', () => {
     // 防止万一 html 里还残留旧文案
     expect(html).not.toContain('shortcut.layoutInOrder');
   });
+});
+
+afterEach(() => {
+  // 清掉 Teleport 残留节点，避免跨用例互相污染
+  document.querySelectorAll('[data-testid="shortcuts-backdrop"]').forEach((node) => node.remove());
 });
 
 /**
