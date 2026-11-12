@@ -110,7 +110,6 @@ function loadSample() {
     </button>
     <div class="sep" />
     <button @click="loadSample">{{ t('toolbar.sample') }}</button>
-    <button @click="store.loadBigTree()">{{ t('toolbar.bigTree') }}</button>
     <button @click="store.reset()">{{ t('toolbar.reset') }}</button>
     <div class="sep" />
     <button @click="ui.toggleTheme()">

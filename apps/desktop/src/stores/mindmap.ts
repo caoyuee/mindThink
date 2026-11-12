@@ -23,7 +23,6 @@ import {
   fromMarkdown,
   toMarkdown,
   countNodes,
-  generateLargeTree,
   searchNodes,
 } from '@/core/tree';
 import { applyOpsToDoc, type MindMapOp, type OpResult } from '@/core/ops';
@@ -502,12 +501,7 @@ export const useMindmapStore = defineStore('mindmap', () => {
 
   //#endregion
 
-  //#region 测试/性能
-  function loadBigTree(): void {
-    _replaceDoc(docOf(generateLargeTree(4, 5)), { resetHistory: true });
-    documentPath.value = null;
-    isDirty.value = true;
-  }
+  //#region 重置
   function reset(): void {
     _replaceDoc(docOf(createNode('中心主题')), { resetHistory: true });
     documentPath.value = null;
@@ -562,7 +556,6 @@ export const useMindmapStore = defineStore('mindmap', () => {
     loadFromKm,
     loadFromMarkdown,
     applyExternalOps,
-    loadBigTree,
     reset,
     select,
   };

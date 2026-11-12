@@ -23,7 +23,6 @@ import {
   fromMarkdown,
   toMarkdown,
   countNodes,
-  generateLargeTree,
   searchNodes,
 } from '@/core/tree';
 import { fromKmJson } from '@/core/km';
@@ -401,10 +400,7 @@ export const useMindmapStore = defineStore('mindmap', () => {
 
   //#endregion
 
-  //#region 测试/性能
-  function loadBigTree(): void {
-    _replaceDoc(docOf(generateLargeTree(4, 5)), { resetHistory: true });
-  }
+  //#region 重置
   function reset(): void {
     _replaceDoc(docOf(createNode('中心主题')), { resetHistory: true });
   }
@@ -453,7 +449,6 @@ export const useMindmapStore = defineStore('mindmap', () => {
     open,
     loadFromKm,
     loadFromMarkdown,
-    loadBigTree,
     reset,
     select,
   };
