@@ -27,6 +27,7 @@ import {
   searchNodes,
 } from '@/core/tree';
 import { fromKmJson } from '@/core/km';
+import { truncateForDisplay } from '@/core/display';
 import { createMcpContext } from '@/core/mcp';
 import { CommandStack, docOf } from '@/core/commands';
 import { saveFile, openFile } from '@/core/file';
@@ -37,7 +38,8 @@ const transformer = new Transformer();
 /** MindNode -> markmap IPureNode（保留 id 用于命令定位） */
 function toMarkmapNode(n: MindNode): IPureNode {
   return {
-    content: n.text,
+    // 画布展示用截断文本（完整文本经 MindEditor 的 title 提示 + 属性面板可见）
+    content: truncateForDisplay(n.text),
     children: n.children.map(toMarkmapNode),
     payload: { id: n.id, note: n.note },
   };

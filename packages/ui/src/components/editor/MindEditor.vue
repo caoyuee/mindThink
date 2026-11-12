@@ -79,6 +79,7 @@ async function render(): Promise<void> {
   await mm.setData(store.markmapData, opts);
   await nextTick();
   bindNodeEvents();
+  attachNodeTooltips();
   await syncSelectionHighlight();
 }
 
@@ -101,6 +102,21 @@ async function syncSelectionHighlight(): Promise<void> {
   const element = findNodeElement(store.selectedId);
   selectedMarkmapNode.value = element?.__data__ ?? null;
   await mm.setHighlight(selectedMarkmapNode.value as never);
+}
+
+/**
+ * 给每个节点挂完整文本 tooltip：画布 content 为截断文本，
+ * 完整文本通过 HTML title 属性在悬浮时展示。
+ */
+function attachNodeTooltips(): void {
+  if (!svgRef.value) return;
+  svgRef.value.querySelectorAll<SVGGElement>('g.markmap-node').forEach((g) => {
+    const id = (g as SVGGElement & { __data__?: MarkmapRuntimeNode }).__data__?.payload?.id;
+    const inner = g.querySelector('foreignObject div');
+    if (!id || !inner) return;
+    const full = findNode(store.doc.root, id)?.text ?? '';
+    if (full) inner.setAttribute('title', full);
+  });
 }
 
 /** 给 markmap 节点挂事件 */
@@ -185,7 +201,8 @@ function startInlineEdit(id: string): void {
   editing.value = {
     id,
     x: rect.left - canvasRect.left - 6,
-    y: rect.top - canvasRect.top - 5,
+    // 上移避开节点下方的横线，不留边框时也保持与文本视觉对齐
+    y: rect.top - canvasRect.top - 9,
     w: Math.max(rect.width + 12, 120),
     h: rect.height + 10,
     value: findNode(store.doc.root, id)?.text ?? '',
@@ -523,11 +540,11 @@ defineExpose({ closeMenu });
   margin: 0;
   padding: 2px 4px;
   background: var(--bg-elev);
-  border: 2px solid var(--accent, #3b82f6);
+  border: none;
   border-radius: 4px;
   resize: none;
   outline: none;
-  overflow: hidden;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+  overflow: auto;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.14);
 }
 </style>
