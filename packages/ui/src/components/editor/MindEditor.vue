@@ -67,6 +67,8 @@ function ensureMarkmap(): void {
       return palette[depth % palette.length] as string;
     },
   });
+  // d3-zoom 默认双击画布会放大，与节点就地编辑冲突，禁用
+  mm.zoom.on('dblclick.zoom', null);
   store.markmap = mm;
 }
 
@@ -107,12 +109,14 @@ async function syncSelectionHighlight(): Promise<void> {
 function bindNodeEvents(): void {
   if (!svgRef.value) return;
   const svg = svgRef.value;
+  // dblclick 必须走捕获阶段：markmap-view 在节点 foreignObject 上注册了
+  // 冒泡阶段的 dblclick + stopPropagation，普通监听收不到节点上的双击事件
   svg.removeEventListener('click', onSvgClick);
   svg.removeEventListener('contextmenu', onSvgContextMenu);
-  svg.removeEventListener('dblclick', onSvgDblClick);
+  svg.removeEventListener('dblclick', onSvgDblClick, true);
   svg.addEventListener('click', onSvgClick);
   svg.addEventListener('contextmenu', onSvgContextMenu);
-  svg.addEventListener('dblclick', onSvgDblClick);
+  svg.addEventListener('dblclick', onSvgDblClick, true);
 }
 
 /** 从 SVG 元素提取我们注入的 payload.id */
