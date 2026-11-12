@@ -29,7 +29,6 @@
       "@/components/layout/AppStatusBar.vue": ["./src/components/layout/AppStatusBar.vue"],
       "@/components/*": ["../../packages/ui/src/components/*"],
       "@/views/*": ["../../packages/ui/src/views/*"],
-      "@/router": ["../../packages/ui/src/router/index.ts"],
       "@/styles/*": ["../../packages/ui/src/styles/*"],
       "@/*": ["./src/*"]
     }

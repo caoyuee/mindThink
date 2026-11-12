@@ -3,7 +3,7 @@
  * 应用根组件
  *
  * 布局 (桌面端无 AppHeader: 导航/语言/主题并入系统原生菜单, 见 menu-spec.ts):
- * - <RouterView /> (路由级页面: editor / settings / about)
+ * - <EditorView /> (单页编辑器; 设置/快捷键/关于均为弹窗)
  * - AppStatusBar (撤销/重做 + 文档概要)
  * - Toast (全局通知)
  *
@@ -14,10 +14,13 @@ import { onBeforeUnmount, onMounted, watch } from 'vue';
 import { listen, type Event as TauriEvent, type UnlistenFn } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
+import EditorView from '@/views/EditorView.vue';
 import AppStatusBar from '@/components/layout/AppStatusBar.vue';
 import Toast from '@/components/common/Toast.vue';
 import DialogHost from '@/components/dialogs/DialogHost.vue';
 import ShortcutsDialog from '@/components/dialogs/ShortcutsDialog.vue';
+import SettingsDialog from '@/components/dialogs/SettingsDialog.vue';
+import AboutDialog from '@/components/dialogs/AboutDialog.vue';
 import { useUiStore } from '@/stores/ui';
 import { useMindmapStore } from '@/stores/mindmap';
 import { useConfigStore } from '@/stores/config';
@@ -29,7 +32,6 @@ import { detectPlatform, registerDirPicker, registerMcpStatusProvider } from '@/
 import { createMcpContext, parseMcpRpcRequest } from '@/core/mcp';
 import { handleMcpServerRpc, type ApplyOpsOutcome, type McpServerDeps } from '@/core/mcp-server';
 import type { MindMapOp } from '@/core/ops';
-import { router } from '@/router';
 import { buildDocumentTitle } from '@/core/document-title';
 import { buildMenuSpec } from '@/core/menu-spec';
 import {
@@ -202,12 +204,12 @@ async function handleMenuEvent(id: string): Promise<void> {
     setLocale(id.slice('lang:'.length) as AppLocale);
     return;
   }
-  // 原生「导航」子菜单：`nav:<route>` 替代被移除的 AppHeader 顶部标签页
+  // 原生「导航」子菜单：settings/shortcuts/about 均为弹窗（单页应用，无路由）
   if (id.startsWith('nav:')) {
     const target = id.slice('nav:'.length);
-    // 快捷键不再是路由页，打开弹窗
-    if (target === 'shortcuts') ui.openShortcuts();
-    else await router.push(`/${target}`);
+    if (target === 'settings') ui.openSettings();
+    else if (target === 'shortcuts') ui.openShortcuts();
+    else if (target === 'about') ui.openAbout();
     return;
   }
   try {
@@ -223,7 +225,7 @@ async function handleMenuEvent(id: string): Promise<void> {
           const label = `editor-${Date.now()}`;
           const child = new WebviewWindow(label, {
             title: t('app.name'),
-            url: '/editor',
+            url: '/',
             width: 1200,
             height: 800,
             minWidth: 700,
@@ -251,7 +253,7 @@ async function handleMenuEvent(id: string): Promise<void> {
         ui.toggleTheme();
         break;
       case 'about':
-        await router.push('/about');
+        ui.openAbout();
         break;
       default:
         break;
@@ -397,12 +399,14 @@ onBeforeUnmount(() => {
 <template>
   <div class="app-shell">
     <main class="app-main">
-      <RouterView />
+      <EditorView />
     </main>
     <AppStatusBar />
     <Toast />
     <DialogHost />
     <ShortcutsDialog :open="ui.shortcutsOpen" @close="ui.closeShortcuts()" />
+    <SettingsDialog :open="ui.settingsOpen" @close="ui.closeSettings()" />
+    <AboutDialog :open="ui.aboutOpen" @close="ui.closeAbout()" />
   </div>
 </template>
 

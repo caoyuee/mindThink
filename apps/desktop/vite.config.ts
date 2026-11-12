@@ -4,7 +4,7 @@ import { buildAliases } from '../../build/aliases';
 
 /**
  * A3：手动分桶，消除单个 >500 KiB chunk 告警并改善首屏。
- * 路由页面已在 src/router 里全部按需 import()；这里把第三方依赖按类型拆成稳定桶，
+ * 这里把第三方依赖按类型拆成稳定桶，
  * 避免大 vendor 全部打进入口 chunk。base './' 下 Vite 会为懒加载 chunk 生成相对路径，
  * 打包后由 Tauri 托盘加载即可，无需改 base 语义。
  */

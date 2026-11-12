@@ -58,7 +58,6 @@ export const MENU_LABEL_KEYS: readonly string[] = [
   'menu.help',
   'menu.language',
   'menu.themeToggle',
-  'menu.goEditor',
   'menu.goSettings',
   'menu.goShortcuts',
   'menu.goAbout',
@@ -106,7 +105,7 @@ const LANGUAGE_MENU_ITEMS: MenuItemSpec[] = [
  * toggle-devtools = CmdOrCtrl+Shift+D. File menu ends with a separator + Quit.
  *
  * Desktop 端 AppHeader 已移除，其能力并入原生菜单：
- * - 「导航」子菜单承载原顶部标签页（编辑器/设置/快捷键/关于）；
+ * - 「导航」子菜单承载原顶部标签页（设置/快捷键/关于，均为弹窗——应用为单页，无路由）；
  * - 「视图」子菜单末尾承载主题切换与语言选择。
  */
 export function buildMenuSpec(t: MenuTranslate, recentFiles: string[] = []): MenuSpec {
@@ -124,7 +123,7 @@ export function buildMenuSpec(t: MenuTranslate, recentFiles: string[] = []): Men
       {
         label: t('menu.navigate'),
         items: [
-          { kind: 'custom', id: 'nav:editor', label: t('menu.goEditor') },
+          // 单页应用：导航项均为弹窗（设置/快捷键/关于），无编辑器项
           { kind: 'custom', id: 'nav:settings', label: t('menu.goSettings') },
           { kind: 'custom', id: 'nav:shortcuts', label: t('menu.goShortcuts') },
           { kind: 'custom', id: 'nav:about', label: t('menu.goAbout') },

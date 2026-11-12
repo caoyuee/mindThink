@@ -4,7 +4,7 @@ import { buildAliases } from '../../build/aliases';
 
 /**
  * A3：手动分桶，消除单个 >500 KiB chunk 告警并改善首屏。
- * 路由页面已在 src/router 里全部按需 import()；这里把第三方依赖按类型拆成稳定桶，
+ * 这里把第三方依赖按类型拆成稳定桶，
  * 避免大 vendor 全部打进入口 chunk。
  */
 function manualChunks(id: string): string | undefined {

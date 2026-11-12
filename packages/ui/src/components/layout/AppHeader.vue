@@ -1,26 +1,20 @@
 <script setup lang="ts">
 /**
- * 全局顶栏：Logo + 路由导航 + 语言切换 + 主题切换
+ * 全局顶栏：Logo + 弹窗导航（设置/快捷键/关于）+ 语言切换 + 主题切换
+ * 单页应用：所有次级入口均为弹窗，无路由。
  */
 import { useI18n } from 'vue-i18n';
-import { useRouter, useRoute } from 'vue-router';
 import { useUiStore } from '@/stores/ui';
 import { setLocale, type AppLocale, SUPPORTED_LOCALES, LOCALE_LABELS } from '@/i18n';
 import { computed } from 'vue';
 
 const { t, locale } = useI18n();
-const router = useRouter();
-const route = useRoute();
 const ui = useUiStore();
 
 const currentLocale = computed(() => locale.value as AppLocale);
 
 function changeLocale(e: Event) {
   setLocale((e.target as HTMLSelectElement).value as AppLocale);
-}
-
-function isActive(name: string): boolean {
-  return route.name === name;
 }
 </script>
 
@@ -32,19 +26,13 @@ function isActive(name: string): boolean {
     </div>
 
     <nav class="nav">
-      <button :class="['nav-item', { active: isActive('editor') }]" @click="router.push('/editor')">
-        {{ t('menu.goEditor') }}
-      </button>
-      <button
-        :class="['nav-item', { active: isActive('settings') }]"
-        @click="router.push('/settings')"
-      >
+      <button class="nav-item" type="button" @click="ui.openSettings()">
         {{ t('menu.goSettings') }}
       </button>
       <button class="nav-item" type="button" @click="ui.openShortcuts()">
         {{ t('menu.goShortcuts') }}
       </button>
-      <button :class="['nav-item', { active: isActive('about') }]" @click="router.push('/about')">
+      <button class="nav-item" type="button" @click="ui.openAbout()">
         {{ t('menu.goAbout') }}
       </button>
     </nav>

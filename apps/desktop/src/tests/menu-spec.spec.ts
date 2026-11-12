@@ -54,14 +54,8 @@ describe('native menu spec structure', () => {
 
   it('Navigate submenu mirrors the removed AppHeader route tabs', () => {
     const navigate = spec.submenus[1];
-    expect(customIds(navigate.items)).toEqual([
-      'nav:editor',
-      'nav:settings',
-      'nav:shortcuts',
-      'nav:about',
-    ]);
+    expect(customIds(navigate.items)).toEqual(['nav:settings', 'nav:shortcuts', 'nav:about']);
     expect(navigate.items.map((i) => (i.kind === 'separator' ? '' : i.label))).toEqual([
-      stubT('menu.goEditor'),
       stubT('menu.goSettings'),
       stubT('menu.goShortcuts'),
       stubT('menu.goAbout'),
@@ -71,7 +65,6 @@ describe('native menu spec structure', () => {
   it('keeps stable top-level custom ids and their accelerators', () => {
     const all = spec.submenus.flatMap((s) => s.items);
     expect(customIds(all)).toEqual([
-      'nav:editor',
       'nav:settings',
       'nav:shortcuts',
       'nav:about',

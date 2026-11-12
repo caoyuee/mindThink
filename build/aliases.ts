@@ -45,7 +45,6 @@ export function buildAliases(appDirUrl: string): { find: string; replacement: st
     },
     { find: '@/components', replacement: pkg('ui/src/components') },
     { find: '@/views', replacement: pkg('ui/src/views') },
-    { find: '@/router', replacement: pkg('ui/src/router/index.ts') },
     { find: '@/styles', replacement: pkg('ui/src/styles') },
     // —— 兜底：app 自己的 src ——
     { find: '@/', replacement: `${appSrc}/` },

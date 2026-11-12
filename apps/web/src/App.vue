@@ -1,10 +1,17 @@
 <script setup lang="ts">
+/**
+ * Web 端应用外壳：单页结构（编辑器）+ 弹窗层。
+ * 设置/快捷键/关于均为弹窗（ui store 开关），不再有次级路由页。
+ */
 import { onBeforeUnmount, onMounted } from 'vue';
+import EditorView from '@/views/EditorView.vue';
 import AppHeader from '@/components/layout/AppHeader.vue';
 import AppStatusBar from '@/components/layout/AppStatusBar.vue';
 import Toast from '@/components/common/Toast.vue';
 import DialogHost from '@/components/dialogs/DialogHost.vue';
 import ShortcutsDialog from '@/components/dialogs/ShortcutsDialog.vue';
+import SettingsDialog from '@/components/dialogs/SettingsDialog.vue';
+import AboutDialog from '@/components/dialogs/AboutDialog.vue';
 import { useUiStore } from '@/stores/ui';
 
 const ui = useUiStore();
@@ -39,12 +46,14 @@ onBeforeUnmount(() => {
   <div class="app-shell">
     <AppHeader />
     <main class="app-main">
-      <RouterView />
+      <EditorView />
     </main>
     <AppStatusBar />
     <Toast />
     <DialogHost />
     <ShortcutsDialog :open="ui.shortcutsOpen" @close="ui.closeShortcuts()" />
+    <SettingsDialog :open="ui.settingsOpen" @close="ui.closeSettings()" />
+    <AboutDialog :open="ui.aboutOpen" @close="ui.closeAbout()" />
   </div>
 </template>
 
