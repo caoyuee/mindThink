@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 核心: markmap 渲染 + 交互层（点击选中、右键菜单）
+ * 核心: markmap 渲染 + 交互层（点击选中、右键菜单、双击就地编辑）
  *
  * AGENTS.md 1.3: markmap 集成的唯一入口
  */
@@ -13,6 +13,7 @@ import { useShortcuts } from '@/composables/useShortcuts';
 import NodeContextMenu from './NodeContextMenu.vue';
 import { exportKm, exportPng, exportSvg } from '@/core/file';
 import { toKmJson } from '@/core/km';
+import { findNode } from '@/core/tree';
 import { useToastStore } from '@/composables/useToast';
 import { useDialog } from '@/composables/useDialog';
 import { focusSearchInput } from '@/composables/useSearchFocus';
@@ -26,8 +27,24 @@ const toast = useToastStore();
 const dialog = useDialog();
 
 const svgRef = ref<SVGSVGElement | null>(null);
+const canvasRef = ref<HTMLDivElement | null>(null);
 const menu = ref<{ x: number; y: number; targetId: string; isRoot: boolean } | null>(null);
 const selectedMarkmapNode = ref<MarkmapRuntimeNode | null>(null);
+
+/** 就地编辑状态：null = 未编辑。坐标为相对 .canvas 容器的像素值 */
+const editing = ref<{
+  id: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  value: string;
+  fontFamily: string;
+  fontSize: string;
+  fontWeight: string;
+  color: string;
+} | null>(null);
+const editInput = ref<HTMLTextAreaElement | null>(null);
 
 /** markmap 实例。组件外闭包变量, 不进响应式 */
 let mm: InstanceType<typeof Markmap> | null = null;
@@ -65,17 +82,23 @@ async function render(): Promise<void> {
   await syncSelectionHighlight();
 }
 
+/** 按 payload.id 查找 markmap 节点对应的 g 元素 */
+function findNodeElement(
+  id: string,
+): (SVGGElement & { __data__?: MarkmapRuntimeNode }) | undefined {
+  return Array.from(svgRef.value?.querySelectorAll<SVGGElement>('g.markmap-node') ?? []).find(
+    (candidate) =>
+      (candidate as SVGGElement & { __data__?: MarkmapRuntimeNode }).__data__?.payload?.id === id,
+  ) as (SVGGElement & { __data__?: MarkmapRuntimeNode }) | undefined;
+}
+
 async function syncSelectionHighlight(): Promise<void> {
   if (!mm || !svgRef.value || !store.selectedId) {
     selectedMarkmapNode.value = null;
     if (mm) await mm.setHighlight(null);
     return;
   }
-  const element = Array.from(svgRef.value.querySelectorAll<SVGGElement>('g.markmap-node')).find(
-    (candidate) =>
-      (candidate as SVGGElement & { __data__?: MarkmapRuntimeNode }).__data__?.payload?.id ===
-      store.selectedId,
-  ) as (SVGGElement & { __data__?: MarkmapRuntimeNode }) | undefined;
+  const element = findNodeElement(store.selectedId);
   selectedMarkmapNode.value = element?.__data__ ?? null;
   await mm.setHighlight(selectedMarkmapNode.value as never);
 }
@@ -86,8 +109,10 @@ function bindNodeEvents(): void {
   const svg = svgRef.value;
   svg.removeEventListener('click', onSvgClick);
   svg.removeEventListener('contextmenu', onSvgContextMenu);
+  svg.removeEventListener('dblclick', onSvgDblClick);
   svg.addEventListener('click', onSvgClick);
   svg.addEventListener('contextmenu', onSvgContextMenu);
+  svg.addEventListener('dblclick', onSvgDblClick);
 }
 
 /** 从 SVG 元素提取我们注入的 payload.id */
@@ -124,22 +149,77 @@ function onSvgContextMenu(e: MouseEvent): void {
   };
 }
 
+function onSvgDblClick(e: MouseEvent): void {
+  const p = payloadOf(e.target);
+  if (!p) return;
+  e.preventDefault();
+  store.select(p.id);
+  startInlineEdit(p.id);
+}
+
 function closeMenu(): void {
   menu.value = null;
 }
 
-function promptRename(id: string): void {
-  const current = store.selectedNode?.text ?? '';
-  void dialog
-    .prompt({
-      title: t('node.rename'),
-      initialValue: current,
-      okText: t('common.ok'),
-      cancelText: t('common.cancel'),
-    })
-    .then((next) => {
-      if (next !== null && next !== current) store.renameNode(id, next);
-    });
+/**
+ * 就地编辑：把 textarea 覆盖在节点 foreignObject 的位置上。
+ * 字体样式从 markmap 渲染出的 div 上拷贝，保证视觉一致。
+ */
+function startInlineEdit(id: string): void {
+  if (!canvasRef.value || editing.value) return;
+  const g = findNodeElement(id);
+  const fo = g?.querySelector('foreignObject');
+  const inner = fo?.querySelector('div');
+  if (!fo || !inner) return;
+
+  const canvasRect = canvasRef.value.getBoundingClientRect();
+  const rect = fo.getBoundingClientRect();
+  const cs = getComputedStyle(inner);
+
+  closeMenu();
+  editing.value = {
+    id,
+    x: rect.left - canvasRect.left - 6,
+    y: rect.top - canvasRect.top - 5,
+    w: Math.max(rect.width + 12, 120),
+    h: rect.height + 10,
+    value: findNode(store.doc.root, id)?.text ?? '',
+    fontFamily: cs.fontFamily,
+    fontSize: cs.fontSize,
+    fontWeight: cs.fontWeight,
+    color: cs.color,
+  };
+  void nextTick(() => {
+    editInput.value?.focus();
+    editInput.value?.select();
+  });
+}
+
+function commitInlineEdit(): void {
+  const state = editing.value;
+  if (!state) return;
+  editing.value = null;
+  // 内容未变化则不动命令栈，避免产生空撤销记录
+  if (state.value === (findNode(store.doc.root, state.id)?.text ?? '')) return;
+  if (state.id === store.doc.root.id) {
+    store.setRootText(state.value);
+  } else {
+    store.renameNode(state.id, state.value);
+  }
+}
+
+function cancelInlineEdit(): void {
+  editing.value = null;
+}
+
+function onEditKeydown(e: KeyboardEvent): void {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    commitInlineEdit();
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    cancelInlineEdit();
+  }
 }
 
 async function confirmRemove(id: string): Promise<void> {
@@ -230,7 +310,7 @@ function onMenuAction(action: string, id: string): void {
       store.addSibling(id, t('node.defaultName'));
       break;
     case 'rename':
-      promptRename(id);
+      startInlineEdit(id);
       break;
     case 'indent':
       store.indentNode(id);
@@ -248,6 +328,8 @@ function onMenuAction(action: string, id: string): void {
 watch(
   () => store.markmapData,
   () => {
+    // 文档被外部修改（MCP/撤销重做等）时关闭编辑框，避免 overlay 悬空
+    if (editing.value) cancelInlineEdit();
     void render();
   },
   { deep: false },
@@ -335,7 +417,7 @@ defineExpose({ closeMenu });
 </script>
 
 <template>
-  <div class="canvas" @click="closeMenu">
+  <div ref="canvasRef" class="canvas" @click="closeMenu">
     <div class="export-actions">
       <button :title="t('toolbar.exportSvg')" @click.stop="void exportCurrentSvg()">
         {{ t('toolbar.exportSvg') }}
@@ -355,6 +437,26 @@ defineExpose({ closeMenu });
       </button>
     </div>
     <svg ref="svgRef" />
+    <textarea
+      v-if="editing"
+      ref="editInput"
+      v-model="editing.value"
+      class="inline-editor"
+      :style="{
+        left: `${editing.x}px`,
+        top: `${editing.y}px`,
+        width: `${editing.w}px`,
+        height: `${editing.h}px`,
+        fontFamily: editing.fontFamily,
+        fontSize: editing.fontSize,
+        fontWeight: editing.fontWeight,
+        color: editing.color,
+      }"
+      @keydown="onEditKeydown"
+      @blur="commitInlineEdit"
+      @click.stop
+      @dblclick.stop
+    />
     <NodeContextMenu
       v-if="menu"
       :x="menu.x"
@@ -407,5 +509,20 @@ defineExpose({ closeMenu });
 }
 .canvas > svg :deep(.markmap-dark .markmap) {
   --markmap-highlight-node-bg: rgba(96, 165, 250, 0.32);
+}
+/* 双击就地编辑覆盖层：定位由内联样式给出 */
+.inline-editor {
+  position: absolute;
+  z-index: 3;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 2px 4px;
+  background: var(--bg-elev);
+  border: 2px solid var(--accent, #3b82f6);
+  border-radius: 4px;
+  resize: none;
+  outline: none;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
 }
 </style>
