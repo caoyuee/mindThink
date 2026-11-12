@@ -67,8 +67,6 @@ function ensureMarkmap(): void {
       return palette[depth % palette.length] as string;
     },
   });
-  // d3-zoom 默认双击画布会放大，与节点就地编辑冲突，禁用
-  mm.zoom.on('dblclick.zoom', null);
   store.markmap = mm;
 }
 
@@ -157,6 +155,9 @@ function onSvgDblClick(e: MouseEvent): void {
   const p = payloadOf(e.target);
   if (!p) return;
   e.preventDefault();
+  // 捕获阶段拦截后续传播：既挡掉 markmap foreignObject 上的 stopPropagation，
+  // 也挡掉 d3-zoom 在同一 svg 冒泡阶段注册的双击缩放（否则编辑框弹出时画布还会放大）
+  e.stopPropagation();
   store.select(p.id);
   startInlineEdit(p.id);
 }
