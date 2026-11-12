@@ -46,6 +46,10 @@ const editing = ref<{
 } | null>(null);
 const editInput = ref<HTMLTextAreaElement | null>(null);
 
+/** 节点悬浮提示：画布为截断文本，悬浮展示全量（支持换行） */
+const tooltip = ref<{ x: number; y: number; text: string } | null>(null);
+const TOOLTIP_MAX_WIDTH = 360;
+
 /** markmap 实例。组件外闭包变量, 不进响应式 */
 let mm: InstanceType<typeof Markmap> | null = null;
 
@@ -76,10 +80,10 @@ async function render(): Promise<void> {
   if (!mm) return;
   const opts = deriveOptions();
   selectedMarkmapNode.value = null;
+  hideTooltip();
   await mm.setData(store.markmapData, opts);
   await nextTick();
   bindNodeEvents();
-  attachNodeTooltips();
   await syncSelectionHighlight();
 }
 
@@ -104,21 +108,6 @@ async function syncSelectionHighlight(): Promise<void> {
   await mm.setHighlight(selectedMarkmapNode.value as never);
 }
 
-/**
- * 给每个节点挂完整文本 tooltip：画布 content 为截断文本，
- * 完整文本通过 HTML title 属性在悬浮时展示。
- */
-function attachNodeTooltips(): void {
-  if (!svgRef.value) return;
-  svgRef.value.querySelectorAll<SVGGElement>('g.markmap-node').forEach((g) => {
-    const id = (g as SVGGElement & { __data__?: MarkmapRuntimeNode }).__data__?.payload?.id;
-    const inner = g.querySelector('foreignObject div');
-    if (!id || !inner) return;
-    const full = findNode(store.doc.root, id)?.text ?? '';
-    if (full) inner.setAttribute('title', full);
-  });
-}
-
 /** 给 markmap 节点挂事件 */
 function bindNodeEvents(): void {
   if (!svgRef.value) return;
@@ -128,9 +117,13 @@ function bindNodeEvents(): void {
   svg.removeEventListener('click', onSvgClick);
   svg.removeEventListener('contextmenu', onSvgContextMenu);
   svg.removeEventListener('dblclick', onSvgDblClick, true);
+  svg.removeEventListener('mouseover', onSvgMouseOver);
+  svg.removeEventListener('mouseleave', hideTooltip);
   svg.addEventListener('click', onSvgClick);
   svg.addEventListener('contextmenu', onSvgContextMenu);
   svg.addEventListener('dblclick', onSvgDblClick, true);
+  svg.addEventListener('mouseover', onSvgMouseOver);
+  svg.addEventListener('mouseleave', hideTooltip);
 }
 
 /** 从 SVG 元素提取我们注入的 payload.id */
@@ -176,6 +169,31 @@ function onSvgDblClick(e: MouseEvent): void {
   e.stopPropagation();
   store.select(p.id);
   startInlineEdit(p.id);
+}
+
+/** 鼠标悬浮节点：显示全量文本提示（截断展示的补充），不悬浮节点时隐藏 */
+function onSvgMouseOver(e: MouseEvent): void {
+  const p = payloadOf(e.target);
+  if (!p || !canvasRef.value) {
+    tooltip.value = null;
+    return;
+  }
+  const fo = findNodeElement(p.id)?.querySelector('foreignObject');
+  if (!fo) return;
+  const canvasRect = canvasRef.value.getBoundingClientRect();
+  const rect = fo.getBoundingClientRect();
+  const canvasWidth = canvasRef.value.clientWidth;
+  const width = Math.min(TOOLTIP_MAX_WIDTH, canvasWidth - 16);
+  // 水平方向夹在画布内，垂直方向放到节点上方（-100% 由 CSS transform 完成）
+  tooltip.value = {
+    x: Math.max(8, Math.min(rect.left - canvasRect.left, canvasWidth - width - 8)),
+    y: rect.top - canvasRect.top - 8,
+    text: findNode(store.doc.root, p.id)?.text ?? '',
+  };
+}
+
+function hideTooltip(): void {
+  tooltip.value = null;
 }
 
 function closeMenu(): void {
@@ -352,6 +370,7 @@ watch(
   () => {
     // 文档被外部修改（MCP/撤销重做等）时关闭编辑框，避免 overlay 悬空
     if (editing.value) cancelInlineEdit();
+    hideTooltip();
     void render();
   },
   { deep: false },
@@ -459,6 +478,13 @@ defineExpose({ closeMenu });
       </button>
     </div>
     <svg ref="svgRef" />
+    <div
+      v-if="tooltip"
+      class="node-tooltip"
+      :style="{ left: `${tooltip.x}px`, top: `${tooltip.y}px` }"
+    >
+      {{ tooltip.text }}
+    </div>
     <textarea
       v-if="editing"
       ref="editInput"
@@ -546,5 +572,25 @@ defineExpose({ closeMenu });
   outline: none;
   overflow: auto;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.14);
+}
+/* 节点全量文本悬浮提示：长文本自动换行，定位在节点上方 */
+.node-tooltip {
+  position: absolute;
+  z-index: 3;
+  transform: translateY(calc(-100% - 8px));
+  box-sizing: border-box;
+  max-width: 360px;
+  padding: 8px 10px;
+  background: var(--bg-elev);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
+  font-size: 13px;
+  line-height: 1.5;
+  /* pre-wrap 保留 Shift+Enter 换行，超宽自动折行 */
+  white-space: pre-wrap;
+  word-break: break-word;
+  pointer-events: none;
 }
 </style>
