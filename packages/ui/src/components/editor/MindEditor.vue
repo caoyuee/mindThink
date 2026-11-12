@@ -87,14 +87,26 @@ async function render(): Promise<void> {
   await syncSelectionHighlight();
 }
 
-/** 按 payload.id 查找 markmap 节点对应的 g 元素 */
-function findNodeElement(
-  id: string,
-): (SVGGElement & { __data__?: MarkmapRuntimeNode }) | undefined {
-  return Array.from(svgRef.value?.querySelectorAll<SVGGElement>('g.markmap-node') ?? []).find(
-    (candidate) =>
-      (candidate as SVGGElement & { __data__?: MarkmapRuntimeNode }).__data__?.payload?.id === id,
-  ) as (SVGGElement & { __data__?: MarkmapRuntimeNode }) | undefined;
+/**
+ * 在 markmap 当前数据树中按 payload.id 查找运行时节点对象。
+ *
+ * 不能用 DOM g 元素上的 __data__ 代替：节点文本变化后 markmap 以
+ * state.key（含内容哈希）做数据 join，旧 g 进入 exit 过渡期间仍留在
+ * DOM 且 __data__ 指向旧节点对象（state.rect 停留在旧尺寸），把它传给
+ * setHighlight 会导致选中背景卡在旧文本大小。
+ */
+function findRuntimeNode(id: string): MarkmapRuntimeNode | null {
+  let found: MarkmapRuntimeNode | null = null;
+  const visit = (node: MarkmapRuntimeNode | undefined): void => {
+    if (found || !node) return;
+    if (node.payload?.id === id) {
+      found = node;
+      return;
+    }
+    for (const child of node.children ?? []) visit(child as MarkmapRuntimeNode);
+  };
+  visit((mm?.state as { data?: MarkmapRuntimeNode } | undefined)?.data);
+  return found;
 }
 
 async function syncSelectionHighlight(): Promise<void> {
@@ -103,9 +115,9 @@ async function syncSelectionHighlight(): Promise<void> {
     if (mm) await mm.setHighlight(null);
     return;
   }
-  const element = findNodeElement(store.selectedId);
-  selectedMarkmapNode.value = element?.__data__ ?? null;
-  await mm.setHighlight(selectedMarkmapNode.value as never);
+  const node = findRuntimeNode(store.selectedId);
+  selectedMarkmapNode.value = node;
+  await mm.setHighlight(node as never);
 }
 
 /** 给 markmap 节点挂事件 */
@@ -126,7 +138,7 @@ function bindNodeEvents(): void {
   svg.addEventListener('mouseleave', hideTooltip);
 }
 
-/** 从 SVG 元素提取我们注入的 payload.id */
+/** 从 SVG 元素提取 payload.id（仅取 id，节点对象一律经 findRuntimeNode 解析） */
 function payloadOf(target: EventTarget | null): { id: string; isRoot: boolean } | null {
   if (!target) return null;
   const el = (target as Element).closest?.('g.markmap-node') as SVGGElement | null;
@@ -135,7 +147,6 @@ function payloadOf(target: EventTarget | null): { id: string; isRoot: boolean } 
   const node = (el as { __data__?: MarkmapRuntimeNode }).__data__;
   const id = node?.payload?.id;
   if (!node || !id) return null;
-  selectedMarkmapNode.value = node;
   return { id, isRoot: id === store.doc.root.id };
 }
 
@@ -143,6 +154,7 @@ function onSvgClick(e: MouseEvent): void {
   const p = payloadOf(e.target);
   if (!p) return;
   store.select(p.id);
+  selectedMarkmapNode.value = findRuntimeNode(p.id);
   if (mm && selectedMarkmapNode.value) void mm.setHighlight(selectedMarkmapNode.value as never);
   closeMenu();
 }
@@ -178,7 +190,8 @@ function onSvgMouseOver(e: MouseEvent): void {
     tooltip.value = null;
     return;
   }
-  const fo = findNodeElement(p.id)?.querySelector('foreignObject');
+  const g = (e.target as Element).closest?.('g.markmap-node');
+  const fo = g?.querySelector('foreignObject');
   if (!fo) return;
   const canvasRect = canvasRef.value.getBoundingClientRect();
   const rect = fo.getBoundingClientRect();
@@ -205,8 +218,11 @@ function closeMenu(): void {
  * 字体样式从 markmap 渲染出的 div 上拷贝，保证视觉一致。
  */
 function startInlineEdit(id: string): void {
-  if (!canvasRef.value || editing.value) return;
-  const g = findNodeElement(id);
+  if (!mm || !canvasRef.value || editing.value) return;
+  // 经 findRuntimeNode + findElement 定位当前数据树对应的 g 元素，
+  // 避免命中 exit 过渡期间残留的旧 g（其 rect 是旧尺寸）
+  const runtimeNode = findRuntimeNode(id);
+  const g = runtimeNode ? mm.findElement(runtimeNode as never)?.g : undefined;
   const fo = g?.querySelector('foreignObject');
   const inner = fo?.querySelector('div');
   if (!fo || !inner) return;
