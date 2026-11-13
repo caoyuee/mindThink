@@ -6,18 +6,18 @@
 
 ## 任务状态图例
 
-- ✅ 已完成 · 🔵 待派工 · ⏳ 设计中（需先出设计文档 gate） · 🛑 人工门槛（执行 AI 不做）
+- ✅ 已完成 · 🔵 待派工 · ⏳ 设计中（需先出设计文档 gate） · 🛑 人工门槛（执行 AI 不做） · ⏸ 前提失效/待重定调
 
 ---
 
-## M0 · 工程收口（v0.2.x）
+## M0 · 工程收口（✅ 已随 v0.1.0 发布）
 
 > 目标：清掉欠账，让主线干净进入 M1。依赖：无（可并行派工）。
 
 | ID | 任务 | 规模 | 依赖 | 状态 |
 |---|---|---|---|---|
-| M0-1 | P0 GUI 实机回归（快捷键四组 + 节点交互 + 多窗口 destroy 权限） | 人工 | 无 | 🛑 |
-| M0-2 | 重打包正式安装包 `pnpm build:tauri` | 小 | M0-1 | 🛑 |
+| M0-1 | P0 GUI 实机回归（含新增：双击就地编辑 / 三个弹窗 / Insert 子节点 / MCP 批准） | 人工 | 无 | 🛑 |
+| M0-2 | 出包：CI 推 `v*` tag 自动构建 Win/Linux；本机 `pnpm build:tauri` 冒烟 | 小 | M0-1 | 🛑 |
 | M0-3 | B3 自动备份保留策略与旧备份清理 | 中 | 无 | ✅ |
 | M0-4 | B2 Recent Files 原生子菜单 | 中 | B1（已 done） | ✅ |
 | M0-5 | B4 defSavePath 生效 + 日志落盘开关 | 中 | 无 | ✅ |
@@ -26,7 +26,7 @@
 ### M0-3 规格（B3 备份保留策略）
 
 - **Rust**：`list_backup_files(path)`（匹配 `basename.backup-*` 降序）、`delete_files(paths)` → 三件套注册。
-- **前端**：`core/file.ts` 加 `pruneBackups(path, keep)`；`config.ts` 加 `backupKeepMax`（默认 20，1-100 校验，仿 `recentMaxNum`）；`save({backup:true})` 成功后 prune；`SettingsView.vue` 加 number input。
+- **前端**：`core/file.ts` 加 `pruneBackups(path, keep)`；`config.ts` 加 `backupKeepMax`（默认 20，1-100 校验，仿 `recentMaxNum`）；`save({backup:true})` 成功后 prune；`SettingsView.vue`（现为 `SettingsDialog.vue`）加 number input。
 - **i18n**：4 语言 `settings.backupKeepMax` / `settings.backupKeepMaxHint`。
 - **测试**：`backup.spec.ts`（构造/解析 stamp、排序、超限裁剪）+ config 校验。
 - **红线**：只匹配 `.backup-*` 命名防误删；删除失败 toast 不静默。
@@ -53,11 +53,12 @@
 
 ---
 
-## M1 · 内核升级 + 设计系统（v0.3.0）
+## M1 · 内核升级 + 设计系统（**下一里程碑**，2026-11-13 用户确认启动，版本待定）
 
 > 目标：换 simple-mind-map 内核，功能对齐 kityminder 基本面，视觉脱胎换骨。
 > **这是唯一动渲染核心的里程碑，之后全部基于稳定内核做增量。**
-> 依赖：D1、D2、D6 确认。
+> 依赖：D1、D6 已确认（2026-11-13）；D2（.mmap 双格式）需在 M1-7 前确认。
+> 决策背景：v0.1.0 后期连续 5 个提交都在绕 markmap 的限制打补丁（dblclick 事件被吞、CSS 截断破坏 scrollWidth 布局、state.key 含内容哈希致高亮错位），继续堆 workaround 的成本已超过换内核。
 
 | ID | 任务 | 规模 | 依赖 | 状态 |
 |---|---|---|---|---|
@@ -76,18 +77,21 @@
 
 ---
 
-## M2 · AI 结构化编辑 L2（v0.4.0）
+## M2 · AI 结构化编辑 L2（⏸ 前提待重定调）
 
-> 目标：AI 改图全链路（建议→预览→批准→撤销）。依赖：D4 确认。
+> 目标（原）：AI 改图全链路（建议→预览→批准→撤销）。依赖：D4 确认。
+> **前提变化（2026-11-10）**：内置 AI 对话已整体删除（commit `344c3e6`），「内置 AI 生成 ops」不再成立。
+> M2-1 的 `MindMapOp` schema 已随 M3 阶段一在 `core/ops.ts` 落地并标 ✅；其余任务**决策前不要派工**。
+> 待产品拍板：① 恢复内置 AI 并复用 ops + 批准门控；② 改走纯外部 Agent / MCP 驱动，砍掉 M2-2/5/6。
 
 | ID | 任务 | 规模 | 依赖 | 状态 |
 |---|---|---|---|---|
-| M2-1 | `MindMapOp` schema + 校验器 + 单测 | 中 | D4 | 🔵 |
+| M2-1 | `MindMapOp` schema + 校验器 + 单测 | 中 | D4 | ✅（2026-11-10，`core/ops.ts` + 3 组测试） |
 | M2-2 | 多协议适配（OpenAI tools / Anthropic / JSON 降级） | 中-大 | M2-1 | 🔵 |
 | M2-3 | Ops diff 预览面板（画布高亮 + 逐条采纳） | 大 | M2-1 | 🔵 |
 | M2-4 | 逐 op 应用 + 成组撤销 | 中 | M2-1 | 🔵 |
 | M2-5 | 场景工具箱：整树生成/分支扩展/分支总结/整理重排 | 中 | M2-3 | 🔵 |
-| M2-6 | C2 API key → OS keyring（先出 `docs/api-key-storage-design.md`） | 中 | 设计 gate | ⏳ |
+| M2-6 | C2 API key → OS keyring（先出 `docs/api-key-storage-design.md`） | 中 | 设计 gate | ⏸（无内置 AI / 无 API key，暂无对象） |
 | M2-7 | 官方 `SKILL.md`（教外部 LLM 写 .md 交换格式） | 小 | 无 | 🔵 |
 
 **M2 总验收**：AI 改图全链路演示通过；错误安全（解析失败不落盘）测试覆盖。
@@ -100,7 +104,7 @@
 
 | ID | 任务 | 规模 | 依赖 | 状态 |
 |---|---|---|---|---|
-| M3-1 | `docs/mcp-live-design.md` 设计 gate 细化并确认 | 文档 | D5 | ⏳ |
+| M3-1 | 补 `docs/mcp-live-design.md`（阶段一已先行实施，需 retroactive 记录） | 文档 | D5 | 🔵 |
 | M3-2 | loopback Streamable HTTP + 轮换 token + 发现文件 | 中-大 | M3-1 | ✅（2026-11-10，mcp_server.rs） |
 | M3-3 | 写链路：Rust→窗口事件→ops 校验→diff 批准→回传 | 大 | M3-1, M2-1 | ✅（2026-11-10，ops.ts + 批准对话框，单窗口） |
 | M3-4 | 读链路实时化 + `query_tree/search/export_markdown` 工具 | 中 | M3-1 | ✅（2026-11-10，mcp-server.ts） |
@@ -128,7 +132,7 @@
 
 | ID | 任务 | 状态 |
 |---|---|---|
-| M5-1 | 三平台 CI + 签名（Windows Authenticode / macOS notarization / Linux 包） | 🔵 |
+| M5-1 | 三平台 CI + 签名（Win/Linux CI 已随 v0.1.0 落地；macOS + 代码签名待补） | 🔵 |
 | M5-2 | `tauri-plugin-updater` + 更新签名 + 回滚 | 🔵 |
 | M5-3 | 官网/文档/GitHub Releases 流程 + 命令面板 Mod+K 打磨 | 🔵 |
 
@@ -144,3 +148,20 @@
 6. **不要做**：不删除 `legacy/`；不在 legacy 开发；不擅自杀用户运行中实例；不重打包 installer（除非明确要求）；不把「需人工 GUI 确认」标成已完成。
 7. **改动 >200 行或跨模块**：先给方案说明影响范围。
 8. **文档与代码冲突**：以代码实际行为为准修正文档，不要臆测。
+
+---
+
+## 2026-11-13 状态校准（以代码为准）
+
+| 项 | 事实 |
+|---|---|
+| 版本 / tag | 全部配置 0.1.0；`v0.1.0` 已重打在 `78df6a1`，CI 由 push `v*` 触发（Windows + Linux） |
+| 质量基线 | Desktop **103** / Web **96** vitest 全绿；双端 vue-tsc 0；全仓 eslint / prettier 过；Rust 四件套待本机回填 |
+| 已确认决策 | D1（换 simple-mind-map）、D6（专注工作室设计系统）——**M1 为下一里程碑**，用户 2026-11-13 确认启动 |
+| 待确认决策 | D2（.mmap 双格式，M1-7 前）、**D4 / M2**（内置 AI 已删，需重定调）、M3-1 设计文档补录 |
+| 应用形态 | 单页（无 vue-router）；设置 / 快捷键 / 关于为弹窗；显示名「灵犀导图」/ mindThink |
+| 已知小债 | `vue-router` 依赖仍留在两端 package.json（代码零引用）；`productName` 仍 `DesktopNaotu`；M3-5 多窗口目标选择未做 |
+
+> 本轮已按代码事实对齐 `AGENTS.md`、`README.md`、`docs/roadmap.md`、`docs/decisions.md`、
+> `docs/architecture.md`、`docs/mcp-clients.md`、`docs/releases/RELEASE-NOTES-v0.1.0.md`，
+> 并在 `docs/archive/HANDOFF-2026-11-07.md` 补录 11-11~11-13 的完成记录。

@@ -20,7 +20,7 @@
 
 ## 启用与发现
 
-1. 打开桌面端 **设置 → 启用 MCP 服务器**
+1. 打开桌面端 **原生菜单「导航 → 设置」或顶栏「设置」**（v0.1.0 起设置为弹窗，不再是独立页面）→ 勾选「启用 MCP 服务器」
 2. 应用在本机监听 `127.0.0.1:<随机端口>`，并在
    `userData/mcp-discovery.json` 写入发现信息：
 
@@ -36,13 +36,13 @@
 - **鉴权**：所有请求必须带 `Authorization: Bearer <token>`，否则 401
 - **安全边界**：仅监听 loopback；Host 头必须为 `127.0.0.1` / `localhost`（防 DNS rebinding）
 - 写操作默认 fail-closed：应用内弹出批准对话框，逐条列出改动，用户批准后才落盘；
-  可在设置开启「自动批准」（不建议对外部不可信 Agent 开启）
+  可在设置弹窗开启「自动批准」（不建议对外部不可信 Agent 开启）
 
 ## 接入示例
 
 ### Claude Code / 一键 mcp add
 
-设置页点击「复制接入命令」，等价于：
+设置弹窗点击「复制接入命令」，等价于：
 
 ```bash
 claude mcp add --transport http mindthink http://127.0.0.1:52134/mcp \

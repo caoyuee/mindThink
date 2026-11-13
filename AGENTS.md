@@ -11,20 +11,21 @@
 - **名称**：mindThink（原 DesktopNaotu 重构）
 - **定位**：AI 原生的本地优先思维导图工作台（人用它思考，Agent 用它干活）
 - **技术栈**：
-  - 前端：Vue 3.5 + `<script setup>` + TypeScript 5.6（strict）+ Vite 6 + Pinia 2 + vue-router 4
-  - i18n：vue-i18n 10，4 语言（zh-CN / en / zh-TW / de）
-  - 脑图内核：markmap 0.18（现状）→ simple-mind-map（规划，见 docs/decisions.md D1）
+  - 前端：Vue 3.5 + `<script setup>` + TypeScript 6（strict）+ Vite 8（rolldown）+ Pinia 4
+  - 应用形态：**单页**（设置/快捷键/关于均为弹窗，由 ui store 开关驱动）；vue-router 已于 2026-11-13 移除
+  - i18n：vue-i18n 10，4 语言（zh-CN / en / zh-TW / de）；locales 属平台分歧，留各 app
+  - 脑图内核：markmap 0.18（v0.1.0 现状）→ simple-mind-map（下一里程碑 M1，2026-11-13 确认，见 docs/decisions.md D1）
   - 桌面：Tauri 2.x + Rust 1.77+
-  - 质量：Vitest 2 + ESLint 9 + Prettier 3
-- **权威文档**：`ROADMAP-2026-11-07.md`（总方向）、`docs/decisions.md`（架构决策）、`docs/architecture.md`（目标架构）
+  - 质量：pnpm 12 + Vitest 5 + ESLint 9 + Prettier 3
+- **权威文档**：`README.md`（现状快照）、`docs/decisions.md`（架构决策，含 D1/D6 已确认）、`docs/roadmap.md`（可派工任务清单与状态校准）；`ROADMAP-2026-11-07.md` 为 2026-11-07 历史规划快照，`docs/architecture.md` 为目标架构（非现状）
 
 ## 1. 绝对红线（违反即拒绝合并）
 
 ### 1.1 数据完整性红线
 
-1. **一切写入走命令栈**：文档（`doc.value`）的任何修改——包括用户编辑、内置 AI 写入、MCP 外部 Agent 写入——都必须经 `stores/mindmap.ts` 的 actions 和 `applyEdit()`，保证撤销/重做栈一致。**禁止任何入口绕过命令栈直接改树**。
+1. **一切写入走命令栈**：文档（`doc.value`）的任何修改——包括用户编辑、MCP 外部 Agent 写入——都必须经 `stores/mindmap.ts` 的 actions 和 `applyEdit()`，保证撤销/重做栈一致。**禁止任何入口绕过命令栈直接改树**。
 2. **`doc.value` 只能由 store 内 `_replaceDoc()` 直接替换**。
-3. **命令对象保持纯数据可序列化**（不持闭包），AI/MCP 操作回放依赖此性质。
+3. **命令对象保持纯数据可序列化**（不持闭包），MCP 操作回放依赖此性质。
 
 ### 1.2 架构分层红线
 
@@ -57,7 +58,7 @@
 │ 各 app src/（平台分歧）：App.vue / main.ts / core/file.ts    │
 │   / stores/{config,mindmap}.ts / i18n/locales / tests       │
 ├────────────────────────────────────────────────────────────┤
-│ packages/ui  Views/Components/Composables/router/ui store   │  ← 共享
+│ packages/ui  Views/Components/Dialogs/Composables/ui store   │  ← 共享
 ├────────────────────────────────────────────────────────────┤
 │ packages/core  Core（core/*.ts + platform.ts）              │  ← 共享，纯 TS 零 Vue
 ├────────────────────────────────────────────────────────────┤
@@ -80,11 +81,11 @@
 | 新增脑图节点操作（增删改） | `apps/*/src/stores/mindmap.ts` 的 actions（平台分歧，两端分别实现） |
 | 新增树形算法（找路径、遍历） | `packages/core/src/core/tree.ts` |
 | 新增命令（可撤销操作） | `packages/core/src/core/commands.ts` |
-| 新增 AI 结构化操作（op） | `packages/core/src/core/ai-ops.ts`（schema + 校验） |
+| 新增结构化操作（op） | `packages/core/src/core/ops.ts`（schema + 校验，MCP 写入与未来 AI 共用） |
 | 新增文件 IO（导出 PNG/JSON/mmap） | 各 app 的 `src/core/file.ts`（接口共享，实现分歧） |
 | 脑图内核数据模型转换 | `packages/core/src/core/renderer-bridge.ts` |
 | 新增共享 UI 控件 | `packages/ui/src/components/{layout,editor,panels,dialogs,common}/` |
-| 新增路由页面 | `packages/ui/src/views/<Name>.vue` + `packages/ui/src/router/index.ts` |
+| 新增次级界面（设置/关于类） | `packages/ui/src/components/dialogs/<Name>Dialog.vue` + ui store 开关（单页应用，无路由） |
 | 新增全局 hook（共享） | `packages/ui/src/composables/` |
 | 新增类型/接口 | `packages/core/src/types/` 下按域拆分 |
 | 修改脑图内核集成 | **只改 `MindEditor.vue` + `renderer-bridge.ts`** |
@@ -101,10 +102,14 @@
 
 ## 5. AI/MCP 协作规范（新规划重点）
 
-- **AI 写入协议**：内置 AI 与 MCP 外部 Agent 统一使用 `MindMapOp` 结构（见 docs/decisions.md D4/D5），**共用一个 ops schema**——这是架构一致性的关键。
-- **AI 建议默认预览不落盘**：AI 提出的每组变更先展示 diff（画布高亮 + 侧栏逐条），用户批准后才走命令栈；一个 AI 建议 = 一个可撤销单元。
+> 现状（v0.1.0）：内置 AI 对话已于 2026-11-10 整体删除；**当前唯一的外部写入入口是 MCP `apply_ops`**。
+> 若 M2 恢复内置 AI，必须复用同一 schema 与批准门控，不得另开写入通道。
+
+- **写入协议**：`MindMapOp` schema 在 `packages/core/src/core/ops.ts`（`parseMindMapOps` 校验 ≤100 条/批 + `applyOpsToDoc` 纯应用），RPC 分发在 `core/mcp-server.ts`。
+- **默认 fail-closed**：外部写先弹批准对话框逐条列出 ops，用户批准后才走命令栈；一次 `apply_ops` 调用 = 一个可撤销单元。只读工具无需批准。
 - **ops 校验失败不落盘**：JSON 解析失败 / ops 校验失败返回用户可读错误。
-- **MCP 写操作默认 fail-closed**：外部写需 diff 批准；只读工具可配置自动执行（见 docs/decisions.md D5）。
+- **并发正确性**：批准对话框是 async，期间文档可能变化；ops 必须在 `applyEdit` 闭包内对**当时**的文档重新应用，不可用预计算的 probe.doc。
+- **API key**：当前无内置 AI、无 API key；任何凭据不得写入 config JSON / 日志 / MCP context（红线不变）。
 
 ## 6. 多 Agent 分工规范
 
@@ -128,7 +133,7 @@
 |---|---|
 | `README.md` | 第一次接触项目 |
 | `AGENTS.md`（本文件） | 修改任何代码前 |
-| `ROADMAP-2026-11-07.md` | 了解全局方向 |
+| `ROADMAP-2026-11-07.md` | 了解方向与研究依据（历史快照，现状勿据此判断） |
 | `docs/decisions.md` | 了解架构决策（D1-D6） |
 | `docs/architecture.md` | 修改跨模块代码前 |
 | `docs/roadmap.md` | 领取开发任务前 |

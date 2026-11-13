@@ -1,12 +1,12 @@
 # docs/decisions.md — 架构决策记录（ADR）
 
 > 记录 mindThink 的关键架构决策。每个决策含：背景、选项对比、决定、后果与风险。
-> 状态：**待用户最终确认** 的决策标注 ⏳；已确认的标注 ✅。
+> 状态：**待用户最终确认** 的决策标注 ⏳；已确认的标注 ✅；部分实施标 🟡；前提失效待重定调标 ⏸。
 > 执行 AI 领取任务前，先确认对应决策的状态。
 
 ---
 
-## D1 · 脑图内核：markmap → simple-mind-map ⏳
+## D1 · 脑图内核：markmap → simple-mind-map ✅（2026-11-13 用户确认，M1 为下一里程碑）
 
 **背景**：markmap 是「Markdown 渲染器」而非「脑图编辑器」，缺节点样式/图标/超链接/富文本/多布局/主题/拖拽/多选/关联线/小地图，补齐成本高于换内核。
 
@@ -17,7 +17,9 @@
 | B. **simple-mind-map**（wanglin2/mind-map） | 编辑器定位、插件化控体积、8 布局、富节点、AI 工具调用先例、框架无关 |
 | C. 自研内核 | 6-12 个月起步，当前不必要 |
 
-**决定**：换 simple-mind-map（MIT 开源）。
+**决定**：换 simple-mind-map（MIT 开源）。2026-11-13 用户确认启动 M1。
+
+**确认依据（v0.1.0 后期实证）**：markmap 0.18 作为「Markdown 渲染器」已连续引发补丁——节点 `foreignObject` 吞掉 dblclick 事件、`scrollWidth` 测量使 CSS 截断不可行（截断只能做在数据投影层）、`state.key` 含内容哈希导致改名后高亮引用旧节点对象。继续在渲染结果上打补丁的边际成本已高于换内核的一次性成本。
 
 **架构落地**：保留内部 `MindNode` 树 + `CommandStack`（兑现「换脑图库不影响命令栈」的设计意图）。新增 `core/renderer-bridge.ts` 适配层做 `MindNode ⇄ simple-mind-map 数据模型` 双向转换。内核只允许出现在 `MindEditor.vue` + renderer-bridge 两处。
 
@@ -61,30 +63,29 @@ mindThink/
 │   └── desktop/      # Tauri 壳（薄壳：file.ts 走 invoke + Rust）
 ├── packages/
 │   ├── ui/           # 组件 + 视图 + composables + styles（共享主体）
-│   ├── core/         # tree/commands/km/mcp/ai/shortcuts（纯 TS，零 Vue 依赖）
-│   └── i18n/         # 8 份 locale 收拢为一处
-└── scripts/          # parity 脚本退役，保留 CI 聚合
+│   ├── core/         # tree/commands/km/ops/mcp-server/mcp/display/shortcuts（纯 TS，零 Vue 依赖）
+│   └── i18n/         # 仅装配逻辑；8 份 locales 属平台分歧，仍留各 app
+└── build/            # @/ 别名单一事实源（parity 脚本已退役）
 ```
 
 **纪律**：迁移以「先移动、不改逻辑」为原则，一次大 PR + 全量 verify；parity 脚本退役；Rust 侧不动。
 
 ---
 
-## D4 · AI 集成：三级演进 ⏳
+## D4 · AI 集成：三级演进 ⏸（前提变化，待重新确认）
 
-**L1 问答助手（已完成）**：AI 回答 → 用户确认 → 写入节点备注。
+**现状（2026-11-13）**：内置 AI 对话（L1 问答助手 + `core/ai.ts` + AiAssistant.vue + ai* 配置）已被用户要求**整体删除**（commit `344c3e6`）。当前无内置 AI、无 API key、无 endpoint/model 配置。
 
-**L2 结构化编辑（M2，本规划灵魂）**：
-- `core/ai-ops.ts` 定义 `MindMapOp` schema：`add/update/remove/move/restyle/setNote/setPriority/setProgress/toggleCollapse`，含 nodeId/parentId/index/patch 字段。
-- 多协议适配：OpenAI function calling / Anthropic tool use / JSON 解析降级模式（国内模型兼容优先）。
-- Ops 预览面板：画布高亮（增绿/删红描边/改琥珀）+ 侧栏逐条采纳。
-- 批准后逐 op 走 `applyEdit()`，一个 AI 建议 = 一个可撤销单元。
-- 场景工具箱：整树生成 / 分支扩展 / 分支总结 / 整理重排。
-- 失败安全：解析失败/校验失败不落盘。
+**已提前落地的部分**：`MindMapOp` schema 随 M3 阶段一实现于 `packages/core/src/core/ops.ts`（`parseMindMapOps` / `applyOpsToDoc`），当前操作集为 `add_child / add_sibling / update_node / delete_node`；写入经 MCP `apply_ops` → 批准对话框（fail-closed）→ 命令栈（一次调用 = 一个撤销单元）。**这正是原 L2 的 schema 与写入安全模型**，只是来源从内置 AI 换成了外部 Agent。
 
-**L3 Agent 会话（M4）**：多步任务 + 步骤流 UI + 工具批准门控（单次/会话/拒绝三档）+ 外部 MCP 工具接入。
+**L2 待重定调（M2，决策前不派工）**：
+- 选项 A：恢复内置 AI，必须复用 `core/ops.ts` 同一 schema + 批准门控，禁止另开写入通道；再补多协议适配、diff 预览面板、场景工具箱。
+- 选项 B：砍掉内置 AI，M2 改为「纯外部 Agent / MCP 驱动」，把精力放在 M3 余项（多窗口目标选择）与 M4（MCP Client + Agent 会话）。
+- 原 `core/ai-ops.ts` 文件名不再使用；`restyle/setPriority/setProgress` 等 op 需等 M1 富节点能力到位后再评估。
 
-**C2（API key 迁移）**：AI endpoint/model 存 config 无妨，仅 key 迁 OS keyring（Rust `keyring` crate）；Web 端照旧 localStorage；key 不落日志/config/MCP context。
+**L3 Agent 会话（M4）**：多步任务 + 步骤流 UI + 工具批准门控（单次/会话/拒绝三档）+ 外部 MCP 工具接入——不依赖内置 AI，仍成立。
+
+**C2（API key 迁移）**：⏸ 当前无对象。若选项 A 恢复内置 AI，再出 `docs/api-key-storage-design.md`（key 迁 OS keyring，不落日志/config/MCP context）。
 
 ---
 
@@ -98,17 +99,17 @@ mindThink/
 - 读链路：`tools/list` / `resources/read` 复用 `createMcpContext(doc)` 实时生成，无快照。
 - 工具面：读类 `query_tree/get_node/search_nodes/export_markdown` + 写类 `apply_ops`（MindMapOp schema，D4 L2 未来复用同一 schema）。
 - 交付 `docs/mcp-clients.md`：Claude Desktop / Cursor / Cline 配置示例 + 一键复制 `mcp add` 命令（设置页）。
-- Rust 验证：`src-tauri/src/mcp_server.rs` 单测 9 个（token/401/403/404/桥接/202/400），待本机 `cargo test` 确认。
+- Rust 验证：`src-tauri/src/mcp_server.rs` 单测 9 个（token/401/403/404/桥接/202/400）；沙箱无 cargo，用户本机四件套结果待回填。
 
 **阶段二（M4）：Client 方向**
 - 设置页挂外部 MCP server（stdio 经 Rust 子进程 / streamable HTTP）。
-- 内置 AI 助手工具列表合并外部 MCP tools，调用走批准门控。
+- 工具列表合并外部 MCP tools，调用走批准门控（单次/会话/拒绝三档）；内置 AI 已移除，此方向不再依赖它。
 
 **协议注意**：MCP 官方现行规范为 Streamable HTTP（含会话管理），旧 HTTP+SSE 已废弃。现有 `POST /mcp` 单行 JSON 是自定义简化实现，M3 升级或声明兼容策略。
 
 ---
 
-## D6 · UI：专注工作室（Focused Studio）设计系统 ⏳
+## D6 · UI：专注工作室（Focused Studio）设计系统 ✅（2026-11-13 随 M1 一并确认）
 
 **定调**：极简留白 + 单一强调色 + 精确间距的工具类方向（brutally-minimal 象限，参考 Linear/Affinity 工作台气质）。
 
